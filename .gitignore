@@ -1,0 +1,56 @@
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+misc.xml
+deploymentTargetDropDown.xml
+render.experimental.xml
+
+# Gradle
+.gradle/
+build/
+
+# Local configuration
+local.properties
+gradle-wrapper.jar
+
+# Generated files
+*.apk
+*.ap_
+*.dex
+*.class
+.externalNativeBuild/
+.cxx/
+output.json
+
+# Kotlin
+*.kotlin_metadata
+
+# Log files
+*.log
+
+# User-specific files
+*.swp
+*~.nib
+*.DS_Store
+*.sublime-workspace
+*.sublime-project
+
+# Android Studio / IntelliJ IDEA-specific files
+out/
+captures/
+.idea/.name
+
+# Ignore build outputs
+*/build/
+
+# Google Services (exclude the `google-services.json` file if needed)
+google-services.json
+
+# Android Profiling
+*.hprof
+
+# Keystore files
+*.jks
+*.keystore
+
