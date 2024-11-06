@@ -9,9 +9,12 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.documentfile.provider.DocumentFile;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.annotation.TargetApi;
+import android.app.Activity;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -22,7 +25,9 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.DocumentsContract;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -79,9 +84,11 @@ public class MainActivity extends AppCompatActivity {
 
         Main();
 //        layout.addView(recyclerView);
+
     }
 
     protected void Main() {
+        String TAG = "Main()";
         // 1. 获取 RecyclerView 实例
         recyclerView = findViewById(R.id.main_recyclerview);
         // 2. 设置 LayoutManager
@@ -89,89 +96,17 @@ public class MainActivity extends AppCompatActivity {
         // 3. 准备数据源
         itemList = new ArrayList<MyRecyclerViewItem>();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Android 11 及以上版本
-            if (!Environment.isExternalStorageManager()) {
-                // 请求 MANAGE_EXTERNAL_STORAGE 权限
-                Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:$packageName"));
-                startActivityForResult(intent, REQUEST_CODE_STORAGE_PERMISSION);
-            }
-        }
-
-        // 权限已获取，可以访问所有存储
-
-        String dataDirectoryPath = String.join(Environment.getExternalStorageDirectory().getAbsolutePath(), "Android/data");
-        File directory = new File(dataDirectoryPath);
-        File[] subDirs = directory.listFiles(File::isDirectory);
-        List<String> projectDirs = new ArrayList<>();
-
-        if (subDirs != null) {
-            for (File subDir : subDirs) {
-//                添加国服
-                if (subDir.getName().startsWith("com.dragonli.projectsnow.")) {
-                    projectDirs.add(subDir.getName());
-                }
-//                添加国际服
-                if (subDir.getName().startsWith("com.seasun.snowbreak")) {
-                    projectDirs.add(subDir.getName());
-                }
-            }
-        }
-
-        localizationValues = new HashMap<>();
-
-        for (String dirName : projectDirs) {
-            String dirPath = String.join(dataDirectoryPath, dirName);
-            File localizationFile = new File(dirPath, "files/localization.txt");
-            if (localizationFile.exists()) {
-                try (BufferedReader reader = new BufferedReader(new FileReader(localizationFile))) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        if (line.startsWith("localization =")) {
-                            String value = line.split("=")[1].trim();
-                            localizationValues.put(dirName, Integer.parseInt(value));
-                        }
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-
-//        for (Map.Entry<String, Integer> entry : localizationValues.entrySet()) {
-//            String dir = entry.getKey();
-//            int value = entry.getValue();
-//
-//            // 创建一个视图项（例如，TextView 和 Button）
-//            // 显示目录和 x 值
-//            // 添加按钮点击事件切换值
-//            Button toggleButton = new Button(this);
-//            toggleButton.setText("切换" + dir);
-//            toggleButton.setOnClickListener(v -> {
-//                int newValue = value == 1 ? 0 : 1;
-//                localizationValues.put(dir, newValue);
-//                // 更新文件
-//                updateLocalizationFile(dir, newValue);
-//            });
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+//            // Android 11 及以上版本
+//            if (!Environment.isExternalStorageManager()) {
+//                // 请求 MANAGE_EXTERNAL_STORAGE 权限
+//                Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:$packageName"));
+//                startActivityForResult(intent, REQUEST_CODE_STORAGE_PERMISSION);
+//            }
 //        }
+        requestAccessAndroidData(this);
 
-        PackageManager packageManager = getPackageManager();
 
-        for (String dirName : projectDirs) {
-            String dirPath = String.join(dataDirectoryPath, dirName);
-            String remark = remarkMap.get(dirName);
-            Drawable appIcon = null;
-            Integer x_value = localizationValues.get(dirName);
-
-            try {
-                ApplicationInfo appInfo = packageManager.getApplicationInfo(dirName, 0);
-                appIcon = packageManager.getApplicationIcon(appInfo);
-            } catch (PackageManager.NameNotFoundException e) {
-                e.printStackTrace();
-            }
-
-            itemList.add(new MyRecyclerViewItem(dirName, remark, appIcon, x_value));
-        }
 
         // 假设你已经有了包名、图标和备注数据
         // itemList.add(new MyItem("com.example.app", "备注信息", someDrawable));
@@ -179,6 +114,22 @@ public class MainActivity extends AppCompatActivity {
         // 4. 创建并设置适配器
         adapter = new MyRecyclerViewAdapter(itemList);
         recyclerView.setAdapter(adapter);
+    }
+
+    @TargetApi(26)
+    private void requestAccessAndroidData(Activity activity){
+        try {
+            Uri uri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3AAndroid%2Fdata");
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, uri);
+            //flag看实际业务需要可再补充
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                    | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+            activity.startActivityForResult(intent, 6666);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void showDirectoryPrompt() {
@@ -262,6 +213,7 @@ public class MainActivity extends AppCompatActivity {
     @RequiresApi(api = Build.VERSION_CODES.R)
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        String TAG = "onActivityResult()";
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_CODE_STORAGE_PERMISSION) {
             if (Environment.isExternalStorageManager()) {
@@ -271,6 +223,92 @@ public class MainActivity extends AppCompatActivity {
                 // 用户拒绝权限
                 Toast.makeText(this, "权限被拒绝，无法访问 Android/data 目录", Toast.LENGTH_LONG).show();
             }
+        }
+        if (requestCode == 6666) {
+            if (resultCode == Activity.RESULT_OK) {
+                // 权限已获取，可以访问所有存储
+                String dataDirectoryPath = null;
+                File directory = null;
+//        dataDirectoryPath = String.join(Environment.getExternalStorageDirectory().getAbsolutePath(), "Android/data");
+//        directory = new File(dataDirectoryPath);
+                directory = new File(Environment.getExternalStorageDirectory(), "Android/data");
+                //persist uri
+                getContentResolver().takePersistableUriPermission(data.getData(),
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+
+                //now use DocumentFile to do some file op
+                DocumentFile documentFile = DocumentFile
+                        .fromTreeUri(this, data.getData());
+                DocumentFile[] files = documentFile.listFiles();
+                List<DocumentFile>  subDirs = new ArrayList<>();
+                for (DocumentFile file : files) {
+                    if ( file.isDirectory() ) {
+                        Log.d(TAG, "onActivityResult: add document: " + file.getName());
+                        subDirs.add(file);
+                    }
+                }
+//                File[] subDirs = directory.listFiles(File::isDirectory);
+                List<String> projectDirs = new ArrayList<>();
+
+                if (!subDirs.isEmpty()) {
+                    for (DocumentFile subDir : subDirs) {
+                        String subDir_name = subDir.getName();
+                        Log.d(TAG, "onActivityResult: subdir, name: " + subDir_name);
+//                添加国服
+                        if (subDir_name.startsWith("com.dragonli.projectsnow.")) {
+                            projectDirs.add(subDir.getName());
+                        }
+//                添加国际服
+                        if (subDir_name.startsWith("com.seasun.snowbreak")) {
+                            projectDirs.add(subDir.getName());
+                        }
+                    }
+                } else {
+                    Log.e(TAG, "Main: subDir is null");
+                    return;
+                }
+
+                localizationValues = new HashMap<>();
+
+                for (String dirName : projectDirs) {
+                    String dirPath = String.join(dataDirectoryPath, dirName);
+                    File localizationFile = new File(dirPath, "files/localization.txt");
+                    if (localizationFile.exists()) {
+                        try (BufferedReader reader = new BufferedReader(new FileReader(localizationFile))) {
+                            String line;
+                            while ((line = reader.readLine()) != null) {
+                                if (line.startsWith("localization =")) {
+                                    String value = line.split("=")[1].trim();
+                                    localizationValues.put(dirName, Integer.parseInt(value));
+                                }
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+
+                PackageManager packageManager = getPackageManager();
+
+                for (String dirName : projectDirs) {
+                    String dirPath = String.join(dataDirectoryPath, dirName);
+                    String remark = remarkMap.get(dirName);
+                    Drawable appIcon = null;
+                    Integer x_value = localizationValues.get(dirName);
+
+                    try {
+                        ApplicationInfo appInfo = packageManager.getApplicationInfo(dirName, 0);
+                        appIcon = packageManager.getApplicationIcon(appInfo);
+                    } catch (PackageManager.NameNotFoundException e) {
+                        e.printStackTrace();
+                    }
+
+                    itemList.add(new MyRecyclerViewItem(dirName, remark, appIcon, x_value));
+                }
+
+            }
+
         }
     }
 

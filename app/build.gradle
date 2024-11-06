@@ -10,8 +10,9 @@ android {
 
     defaultConfig {
         applicationId "io.github.liujiewentt.hugfenny"
-        minSdk 30
-        targetSdk 34
+        minSdk 26
+        //noinspection ExpiredTargetSdkVersion
+        targetSdk 26
         versionCode 1
         versionName "1.0"
 
@@ -40,6 +41,7 @@ dependencies {
 
     implementation libs.androidx.core.ktx
     implementation libs.androidx.lifecycle.runtime.ktx
+    implementation libs.androidx.documentfile
     implementation libs.androidx.activity
     implementation libs.androidx.activity.compose
     implementation platform(libs.androidx.compose.bom)
