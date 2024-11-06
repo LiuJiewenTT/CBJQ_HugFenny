@@ -6,6 +6,7 @@ import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -21,6 +22,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.Settings;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -44,6 +46,7 @@ import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_OPEN_DOCUMENT_TREE = 1000;
+    private static final int REQUEST_CODE_STORAGE_PERMISSION = 1;
     static Map<String, Integer> localizationValues;
     private RecyclerView recyclerView;
     private MyRecyclerViewAdapter adapter;
@@ -86,22 +89,16 @@ public class MainActivity extends AppCompatActivity {
         // 3. 准备数据源
         itemList = new ArrayList<MyRecyclerViewItem>();
 
-        Uri savedUri = getSavedUri();
-        if (savedUri == null) {
-
-            // 启动选择器，提示用户选择目录
-            showDirectoryPrompt();
-            savedUri = getSavedUri();
-            if (savedUri == null) {
-                new AlertDialog.Builder(this)
-                        .setTitle("错误")
-                        .setMessage("无uri")
-                        .setPositiveButton("确定", null)
-                        .show();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Android 11 及以上版本
+            if (!Environment.isExternalStorageManager()) {
+                // 请求 MANAGE_EXTERNAL_STORAGE 权限
+                Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:$packageName"));
+                startActivityForResult(intent, REQUEST_CODE_STORAGE_PERMISSION);
             }
         }
 
-        // 直接使用保存的 URI 进行文件操作
+        // 权限已获取，可以访问所有存储
 
         String dataDirectoryPath = String.join(Environment.getExternalStorageDirectory().getAbsolutePath(), "Android/data");
         File directory = new File(dataDirectoryPath);
@@ -262,18 +259,17 @@ public class MainActivity extends AppCompatActivity {
         return uriString != null ? Uri.parse(uriString) : null;
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.R)
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_CODE_OPEN_DOCUMENT_TREE && resultCode == RESULT_OK) {
-            if (data != null) {
-                Uri uri = data.getData();
-                // 持久化权限
-                getContentResolver().takePersistableUriPermission(uri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-                // 保存 URI 以便后续使用
-                saveUri(uri);
-                // 进行文件操作
+        if (requestCode == REQUEST_CODE_STORAGE_PERMISSION) {
+            if (Environment.isExternalStorageManager()) {
+                // 用户已授予权限
+                Toast.makeText(this, "已授权", Toast.LENGTH_LONG).show();
+            } else {
+                // 用户拒绝权限
+                Toast.makeText(this, "权限被拒绝，无法访问 Android/data 目录", Toast.LENGTH_LONG).show();
             }
         }
     }
