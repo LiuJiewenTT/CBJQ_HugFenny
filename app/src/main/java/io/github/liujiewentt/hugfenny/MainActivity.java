@@ -1,20 +1,66 @@
 package io.github.liujiewentt.hugfenny;
 
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.graphics.drawable.Drawable;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 
 public class MainActivity extends AppCompatActivity {
+    private static final int REQUEST_CODE_OPEN_DOCUMENT_TREE = 1000;
+    static Map<String, Integer> localizationValues;
+    private RecyclerView recyclerView;
+    private MyRecyclerViewAdapter adapter;
+    private List<MyRecyclerViewItem> itemList;
+
+    static public Map<String, String> remarkMap = Map.of(
+            "com.dragonli.projectsnow.lhm", "官服",
+            "com.dragonli.projectsnow.bilibili", "B服",
+            "com.seasun.snowbreak.google", "国际服"
+            );
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         // 设置布局文件
         setContentView(R.layout.activity_main);
+        LinearLayout layout = findViewById(R.id.main_linearlayout);
 
         // 获取布局中的视图元素
         TextView helloWorldText = findViewById(R.id.hello_world);
@@ -27,5 +73,320 @@ public class MainActivity extends AppCompatActivity {
                 helloWorldText.setText("Button Clicked!");
             }
         });
+
+        Main();
+//        layout.addView(recyclerView);
     }
+
+    protected void Main() {
+        // 1. 获取 RecyclerView 实例
+        recyclerView = findViewById(R.id.main_recyclerview);
+        // 2. 设置 LayoutManager
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        // 3. 准备数据源
+        itemList = new ArrayList<MyRecyclerViewItem>();
+
+        Uri savedUri = getSavedUri();
+        if (savedUri == null) {
+
+            // 启动选择器，提示用户选择目录
+            showDirectoryPrompt();
+            savedUri = getSavedUri();
+            if (savedUri == null) {
+                new AlertDialog.Builder(this)
+                        .setTitle("错误")
+                        .setMessage("无uri")
+                        .setPositiveButton("确定", null)
+                        .show();
+            }
+        }
+
+        // 直接使用保存的 URI 进行文件操作
+
+        String dataDirectoryPath = String.join(Environment.getExternalStorageDirectory().getAbsolutePath(), "Android/data");
+        File directory = new File(dataDirectoryPath);
+        File[] subDirs = directory.listFiles(File::isDirectory);
+        List<String> projectDirs = new ArrayList<>();
+
+        if (subDirs != null) {
+            for (File subDir : subDirs) {
+//                添加国服
+                if (subDir.getName().startsWith("com.dragonli.projectsnow.")) {
+                    projectDirs.add(subDir.getName());
+                }
+//                添加国际服
+                if (subDir.getName().startsWith("com.seasun.snowbreak")) {
+                    projectDirs.add(subDir.getName());
+                }
+            }
+        }
+
+        localizationValues = new HashMap<>();
+
+        for (String dirName : projectDirs) {
+            String dirPath = String.join(dataDirectoryPath, dirName);
+            File localizationFile = new File(dirPath, "files/localization.txt");
+            if (localizationFile.exists()) {
+                try (BufferedReader reader = new BufferedReader(new FileReader(localizationFile))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        if (line.startsWith("localization =")) {
+                            String value = line.split("=")[1].trim();
+                            localizationValues.put(dirName, Integer.parseInt(value));
+                        }
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+//        for (Map.Entry<String, Integer> entry : localizationValues.entrySet()) {
+//            String dir = entry.getKey();
+//            int value = entry.getValue();
+//
+//            // 创建一个视图项（例如，TextView 和 Button）
+//            // 显示目录和 x 值
+//            // 添加按钮点击事件切换值
+//            Button toggleButton = new Button(this);
+//            toggleButton.setText("切换" + dir);
+//            toggleButton.setOnClickListener(v -> {
+//                int newValue = value == 1 ? 0 : 1;
+//                localizationValues.put(dir, newValue);
+//                // 更新文件
+//                updateLocalizationFile(dir, newValue);
+//            });
+//        }
+
+        PackageManager packageManager = getPackageManager();
+
+        for (String dirName : projectDirs) {
+            String dirPath = String.join(dataDirectoryPath, dirName);
+            String remark = remarkMap.get(dirName);
+            Drawable appIcon = null;
+            Integer x_value = localizationValues.get(dirName);
+
+            try {
+                ApplicationInfo appInfo = packageManager.getApplicationInfo(dirName, 0);
+                appIcon = packageManager.getApplicationIcon(appInfo);
+            } catch (PackageManager.NameNotFoundException e) {
+                e.printStackTrace();
+            }
+
+            itemList.add(new MyRecyclerViewItem(dirName, remark, appIcon, x_value));
+        }
+
+        // 假设你已经有了包名、图标和备注数据
+        // itemList.add(new MyItem("com.example.app", "备注信息", someDrawable));
+
+        // 4. 创建并设置适配器
+        adapter = new MyRecyclerViewAdapter(itemList);
+        recyclerView.setAdapter(adapter);
+    }
+
+    private void showDirectoryPrompt() {
+        new AlertDialog.Builder(this)
+                .setTitle("选择目录")
+                .setMessage("请定位到 Android/data/ 目录并选择该目录。")
+                .setPositiveButton("继续", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        openDirectoryPicker();
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void openDirectoryPicker() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        startActivityForResult(intent, REQUEST_CODE_OPEN_DOCUMENT_TREE);
+
+        // 初始化 ActivityResultLauncher，仅在API 21及以上使用
+        ActivityResultLauncher<Intent> openDocumentTreeLauncher = null;
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            // 初始化 ActivityResultLauncher
+//            openDocumentTreeLauncher = registerForActivityResult(
+//                    new ActivityResultContracts.StartActivityForResult(),
+//                    new ActivityResultCallback<androidx.activity.result.ActivityResult>() {
+//                        @Override
+//                        public void onActivityResult(androidx.activity.result.ActivityResult result) {
+//                            if (result.getResultCode() == RESULT_OK) {
+//                                Intent data = result.getData();
+//                                if (data != null) {
+//                                    Uri uri = data.getData();
+//                                    if (uri != null) {
+//                                        // 处理返回的 URI（选中的目录）
+//                                        getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+//                                        Toast.makeText(MainActivity.this, "Directory selected: " + uri.getPath(), Toast.LENGTH_SHORT).show();
+//                                    } else {
+//                                        Toast.makeText(MainActivity.this, "No directory selected", Toast.LENGTH_SHORT).show();
+//                                    }
+//                                }
+//                            }
+//                        }
+//                    });
+//        }
+
+        // 启动文件选择器
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+//            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+//            openDocumentTreeLauncher.launch(intent);
+//        } else {
+//            // 对于低于API 21的设备，使用传统的startActivityForResult
+//            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+//            startActivityForResult(intent, 1000);  // 1000是旧版的请求代码
+//        }
+    }
+
+    private static void updateLocalizationFile(String dirPath, int newValue) {
+        File localizationFile = new File(dirPath, "files/localization.txt");
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(localizationFile))) {
+            writer.write("localization = " + newValue);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // 获取和保存 URI
+    private void saveUri(Uri uri) {
+        SharedPreferences sharedPreferences = getSharedPreferences("app_prefs", MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putString("saved_uri", uri.toString());
+        editor.apply();
+    }
+
+    private Uri getSavedUri() {
+        SharedPreferences sharedPreferences = getSharedPreferences("app_prefs", MODE_PRIVATE);
+        String uriString = sharedPreferences.getString("saved_uri", null);
+        return uriString != null ? Uri.parse(uriString) : null;
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_OPEN_DOCUMENT_TREE && resultCode == RESULT_OK) {
+            if (data != null) {
+                Uri uri = data.getData();
+                // 持久化权限
+                getContentResolver().takePersistableUriPermission(uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                // 保存 URI 以便后续使用
+                saveUri(uri);
+                // 进行文件操作
+            }
+        }
+    }
+
+
+    class MyRecyclerViewItem {
+        private String packageName;
+        private String remark;
+        private Drawable icon;
+        private Integer xValue;
+
+        // 构造方法、getter、setter
+        public MyRecyclerViewItem(String packageName, String remark, Drawable icon, Integer xValue) {
+            this.packageName = packageName;
+            this.remark = remark;
+            this.icon = icon;
+            this.xValue = xValue;
+        }
+
+        public String getPackageName() {
+            return packageName;
+        }
+
+        public String getRemark() {
+            return remark;
+        }
+
+        public Drawable getIcon() {
+            return icon;
+        }
+
+        public Integer getXValue() {
+            return xValue;
+        }
+
+        public void toggleXValue() {
+            this.xValue = (this.xValue == 0 ? 1 : 0);
+        }
+    }
+
+    static class MyRecyclerViewAdapter extends RecyclerView.Adapter<MyRecyclerViewAdapter.MyViewHolder> {
+        private List<MyRecyclerViewItem> itemList;
+
+        public MyRecyclerViewAdapter(List<MyRecyclerViewItem> itemList) {
+            this.itemList = itemList;
+        }
+
+        @NonNull
+        @Override
+        public MyViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View itemView = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_app, parent, false);
+            return new MyViewHolder(itemView);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull MyViewHolder holder, int position) {
+            MyRecyclerViewItem item = itemList.get(position);
+
+            // 绑定数据
+            holder.packageNameTextView.setText(item.getPackageName());
+            holder.remarkTextView.setText(item.getRemark());
+            holder.iconImageView.setImageDrawable(item.getIcon());
+            holder.xValueTextView.setText(item.getXValue() == 1 ? "X=1" : "X=0");
+
+            // 设置按钮点击事件，切换 X 值
+            holder.xValueButton.setOnClickListener(v -> {
+                item.toggleXValue();
+                localizationValues.put(item.packageName, item.xValue);
+                updateLocalizationFile(item.packageName, item.xValue);
+                notifyItemChanged(position); // 通知数据已更新，刷新视图
+            });
+
+//        String packageName = // 获取包名
+//        int xValue = localizationValues.get(packageName); // 从存储中获取 x 值
+//        holder.appIcon.setImageDrawable(appIcon); // 设置图标
+//        holder.appRemark.setText(remarks.get(packageName)); // 设置备注
+//        holder.xValue.setText(String.valueOf(xValue)); // 显示 x 值
+//
+//        holder.toggleButton.setOnClickListener(v -> {
+//            // 切换 x 值
+//            int newValue = xValue == 1 ? 0 : 1;
+//            localizationValues.put(packageName, newValue); // 更新存储
+//            holder.xValue.setText(String.valueOf(newValue)); // 更新显示
+//            updateLocalizationFile(packageName, newValue); // 更新文件
+//        });
+        }
+
+        @Override
+        public int getItemCount() {
+            return itemList.size();
+        }
+
+        public static class MyViewHolder extends RecyclerView.ViewHolder {
+            TextView packageNameTextView;
+            TextView remarkTextView;
+            ImageView iconImageView;
+            TextView xValueTextView;
+            Button xValueButton;
+
+            public MyViewHolder(View itemView) {
+                super(itemView);
+                packageNameTextView = itemView.findViewById(R.id.app_name);
+                remarkTextView = itemView.findViewById(R.id.app_remark);
+                iconImageView = itemView.findViewById(R.id.app_icon);
+                xValueTextView = itemView.findViewById(R.id.x_value);
+                xValueButton = itemView.findViewById(R.id.toggle_button);
+            }
+        }
+    }
+
+
 }
+
+
+

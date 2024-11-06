@@ -12,6 +12,7 @@ appcompat = "1.7.0"
 material = "latest.integration"
 
 [libraries]
+androidx-activity = { module = "androidx.activity:activity" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
