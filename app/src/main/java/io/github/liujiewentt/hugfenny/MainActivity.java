@@ -1,6 +1,8 @@
 package io.github.liujiewentt.hugfenny;
 
 
+import static android.os.SystemClock.sleep;
+
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -104,7 +106,80 @@ public class MainActivity extends AppCompatActivity {
 //                startActivityForResult(intent, REQUEST_CODE_STORAGE_PERMISSION);
 //            }
 //        }
-        requestAccessAndroidData(this);
+//        requestAccessAndroidData(this);
+        String dataDirectoryPath = String.join(Environment.getExternalStorageDirectory().getAbsolutePath(), "Android/data");
+        List<String> projectDirs = new ArrayList<>();
+        List<ApplicationInfo> allApps = null;
+        allApps = getPackageManager().getInstalledApplications(0);
+        while(allApps.size() <= 1){
+            sleep(300);
+            allApps = getPackageManager().getInstalledApplications(0);
+        }
+
+        for (ApplicationInfo ai : allApps) {
+//            Log.d("packageName", ai.packageName);
+            String subDir_name = ai.packageName;
+//            Log.d(TAG, "onActivityResult: subdir, name: " + subDir_name);
+//                添加国服
+            if (subDir_name.startsWith("com.dragonli.projectsnow.")) {
+                Log.d(TAG, "add projectDirs : "+subDir_name);
+                projectDirs.add(subDir_name);
+            }
+//                添加国际服
+            if (subDir_name.startsWith("com.seasun.snowbreak")) {
+                Log.d(TAG, "add projectDirs : "+subDir_name);
+                projectDirs.add(subDir_name);
+            }
+        }
+
+        localizationValues = new HashMap<>();
+
+        for (String dirName : projectDirs) {
+            String dirPath = String.join(dataDirectoryPath, dirName);
+            File localizationFile = new File(dirPath, "files/localization.txt");
+            if (localizationFile.exists()) {
+                try (BufferedReader reader = new BufferedReader(new FileReader(localizationFile))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        if (line.startsWith("localization =")) {
+                            String value = line.split("=")[1].trim();
+                            localizationValues.put(dirName, Integer.parseInt(value));
+                        }
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                Log.e(TAG, "Main: file not exist: " + localizationFile.getPath());
+            }
+        }
+
+        if (localizationValues == null) {
+            Log.e(TAG, "Main: localizationValues = null");
+//            return;
+        }
+
+        PackageManager packageManager = getPackageManager();
+
+        for (String dirName : projectDirs) {
+            String dirPath = String.join(dataDirectoryPath, dirName);
+            String remark = remarkMap.get(dirName);
+            Drawable appIcon = null;
+            Integer x_value = localizationValues.get(dirName);
+            if (x_value == null) {
+                x_value = -1;
+            }
+
+            try {
+                ApplicationInfo appInfo = packageManager.getApplicationInfo(dirName, 0);
+                appIcon = packageManager.getApplicationIcon(appInfo);
+            } catch (PackageManager.NameNotFoundException e) {
+                e.printStackTrace();
+            }
+
+            itemList.add(new MyRecyclerViewItem(dirName, remark, appIcon, x_value));
+        }
+
 
 
 
@@ -187,12 +262,14 @@ public class MainActivity extends AppCompatActivity {
 //        }
     }
 
-    private static void updateLocalizationFile(String dirPath, int newValue) {
+    private static boolean updateLocalizationFile(String dirPath, int newValue) {
         File localizationFile = new File(dirPath, "files/localization.txt");
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(localizationFile))) {
             writer.write("localization = " + newValue);
+            return true;
         } catch (IOException e) {
             e.printStackTrace();
+            return false;
         }
     }
 
@@ -241,7 +318,7 @@ public class MainActivity extends AppCompatActivity {
                 DocumentFile documentFile = DocumentFile
                         .fromTreeUri(this, data.getData());
                 DocumentFile[] files = documentFile.listFiles();
-                List<DocumentFile>  subDirs = new ArrayList<>();
+                List<DocumentFile> subDirs = new ArrayList<>();
                 for (DocumentFile file : files) {
                     if ( file.isDirectory() ) {
                         Log.d(TAG, "onActivityResult: add document: " + file.getName());
@@ -249,63 +326,6 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
 //                File[] subDirs = directory.listFiles(File::isDirectory);
-                List<String> projectDirs = new ArrayList<>();
-
-                if (!subDirs.isEmpty()) {
-                    for (DocumentFile subDir : subDirs) {
-                        String subDir_name = subDir.getName();
-                        Log.d(TAG, "onActivityResult: subdir, name: " + subDir_name);
-//                添加国服
-                        if (subDir_name.startsWith("com.dragonli.projectsnow.")) {
-                            projectDirs.add(subDir.getName());
-                        }
-//                添加国际服
-                        if (subDir_name.startsWith("com.seasun.snowbreak")) {
-                            projectDirs.add(subDir.getName());
-                        }
-                    }
-                } else {
-                    Log.e(TAG, "Main: subDir is null");
-                    return;
-                }
-
-                localizationValues = new HashMap<>();
-
-                for (String dirName : projectDirs) {
-                    String dirPath = String.join(dataDirectoryPath, dirName);
-                    File localizationFile = new File(dirPath, "files/localization.txt");
-                    if (localizationFile.exists()) {
-                        try (BufferedReader reader = new BufferedReader(new FileReader(localizationFile))) {
-                            String line;
-                            while ((line = reader.readLine()) != null) {
-                                if (line.startsWith("localization =")) {
-                                    String value = line.split("=")[1].trim();
-                                    localizationValues.put(dirName, Integer.parseInt(value));
-                                }
-                            }
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-
-                PackageManager packageManager = getPackageManager();
-
-                for (String dirName : projectDirs) {
-                    String dirPath = String.join(dataDirectoryPath, dirName);
-                    String remark = remarkMap.get(dirName);
-                    Drawable appIcon = null;
-                    Integer x_value = localizationValues.get(dirName);
-
-                    try {
-                        ApplicationInfo appInfo = packageManager.getApplicationInfo(dirName, 0);
-                        appIcon = packageManager.getApplicationIcon(appInfo);
-                    } catch (PackageManager.NameNotFoundException e) {
-                        e.printStackTrace();
-                    }
-
-                    itemList.add(new MyRecyclerViewItem(dirName, remark, appIcon, x_value));
-                }
 
             }
 
@@ -344,7 +364,11 @@ public class MainActivity extends AppCompatActivity {
         }
 
         public void toggleXValue() {
-            this.xValue = (this.xValue == 0 ? 1 : 0);
+            this.xValue = getOpposingXValue();
+        }
+
+        public Integer getOpposingXValue() {
+            return (this.xValue == 0 ? 1 : 0);
         }
     }
 
@@ -371,14 +395,16 @@ public class MainActivity extends AppCompatActivity {
             holder.packageNameTextView.setText(item.getPackageName());
             holder.remarkTextView.setText(item.getRemark());
             holder.iconImageView.setImageDrawable(item.getIcon());
-            holder.xValueTextView.setText(item.getXValue() == 1 ? "X=1" : "X=0");
+            holder.xValueTextView.setText(item.getXValue().toString());
 
             // 设置按钮点击事件，切换 X 值
             holder.xValueButton.setOnClickListener(v -> {
-                item.toggleXValue();
-                localizationValues.put(item.packageName, item.xValue);
-                updateLocalizationFile(item.packageName, item.xValue);
-                notifyItemChanged(position); // 通知数据已更新，刷新视图
+                Integer newXValue = item.getOpposingXValue();
+                if ( updateLocalizationFile(item.packageName, newXValue) ) {
+                    item.toggleXValue();
+                    localizationValues.put(item.packageName, newXValue);
+                    notifyItemChanged(position); // 通知数据已更新，刷新视图
+                }
             });
 
 //        String packageName = // 获取包名
