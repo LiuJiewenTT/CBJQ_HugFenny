@@ -2,7 +2,7 @@ package io.github.liujiewentt.hugfenny;
 
 
 import static android.os.SystemClock.sleep;
-
+import android.Manifest;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -11,6 +11,8 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.documentfile.provider.DocumentFile;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -54,10 +56,14 @@ import java.util.Map;
 public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_OPEN_DOCUMENT_TREE = 1000;
     private static final int REQUEST_CODE_STORAGE_PERMISSION = 1;
+    private static final int REQUEST_CODE_WRITE_EXTERNAL_STORAGE = 101;
     static Map<String, Integer> localizationValues;
     private RecyclerView recyclerView;
     private MyRecyclerViewAdapter adapter;
     private List<MyRecyclerViewItem> itemList;
+
+    private static String dataDirectoryPath = null;
+    private static String extSdRootPath = null;
 
     static public Map<String, String> remarkMap = Map.of(
             "com.dragonli.projectsnow.lhm", "官服",
@@ -67,6 +73,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        String TAG = "onCreate";
         super.onCreate(savedInstanceState);
         // 设置布局文件
         setContentView(R.layout.activity_main);
@@ -84,6 +91,39 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        if (!checkPermission()) {
+            requestStoragePermission();
+        }
+        while (!checkPermission()) {
+//            debug sleep
+            sleep(300);
+        }
+        boolean tempbool1 = false;
+        tempbool1 = (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED);
+        Log.d(TAG, "onCreate: READ_EXTERNAL_STORAGE == PERMISSION_GRANTED ? "+tempbool1);
+        tempbool1 = (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED);
+        Log.d(TAG, "onCreate: WRITE_EXTERNAL_STORAGE == PERMISSION_GRANTED ? "+tempbool1);
+//        笔记：获取了WRITE_EXTERNAL_STORAGE后将会同时具有READ_EXTERNAL_STORAGE的权限。
+
+//        ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION
+        if ( !(ContextCompat.checkSelfPermission(this,
+                Manifest.permission.MANAGE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) ) {
+            // 请求 MANAGE_EXTERNAL_STORAGE 权限
+//                Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:$packageName"));
+//            Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:io.github.liujiewentt.hugfenny"));
+            Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+            startActivityForResult(intent, REQUEST_CODE_STORAGE_PERMISSION);
+        }
+        while ( !(ContextCompat.checkSelfPermission(this,
+                Manifest.permission.MANAGE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) ) {
+            Log.d(TAG, "onCreate: 等待授权MANAGE_EXTERNAL_STORAGE");
+            sleep(300);
+            // 笔记：这里是不会检测到的（如果请求用的也是和WRITE_EXTERNAL_STORAGE的一个方法的话），所以不知道，于是一直卡在这。
+            break;  // debug临时退出
+        }
+
         Main();
 //        layout.addView(recyclerView);
 
@@ -94,7 +134,10 @@ public class MainActivity extends AppCompatActivity {
         // 1. 获取 RecyclerView 实例
         recyclerView = findViewById(R.id.main_recyclerview);
         // 2. 设置 LayoutManager
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        LinearLayoutManager linearLayoutManager = new LinearLayoutManager(this);
+        linearLayoutManager.setStackFromEnd(true);
+        linearLayoutManager.setReverseLayout(true);
+        recyclerView.setLayoutManager(linearLayoutManager);
         // 3. 准备数据源
         itemList = new ArrayList<MyRecyclerViewItem>();
 
@@ -107,7 +150,10 @@ public class MainActivity extends AppCompatActivity {
 //            }
 //        }
 //        requestAccessAndroidData(this);
-        String dataDirectoryPath = String.join(Environment.getExternalStorageDirectory().getAbsolutePath(), "Android/data");
+        extSdRootPath = Environment.getExternalStorageDirectory().getAbsolutePath();
+        dataDirectoryPath = String.join("/", extSdRootPath, "Android/data");
+        Log.d(TAG, "Main: getExternalStorageDirectory(): "+extSdRootPath);
+        Log.d(TAG, "Main: dataDirectoryPath = " + dataDirectoryPath);
         List<String> projectDirs = new ArrayList<>();
         List<ApplicationInfo> allApps = null;
         allApps = getPackageManager().getInstalledApplications(0);
@@ -135,7 +181,7 @@ public class MainActivity extends AppCompatActivity {
         localizationValues = new HashMap<>();
 
         for (String dirName : projectDirs) {
-            String dirPath = String.join(dataDirectoryPath, dirName);
+            String dirPath = String.join("/", dataDirectoryPath, dirName);
             File localizationFile = new File(dirPath, "files/localization.txt");
             if (localizationFile.exists()) {
                 try (BufferedReader reader = new BufferedReader(new FileReader(localizationFile))) {
@@ -147,6 +193,7 @@ public class MainActivity extends AppCompatActivity {
                         }
                     }
                 } catch (IOException e) {
+                    Log.e(TAG, "Main: 无法读取xvalue, 文件："+dirPath );
                     e.printStackTrace();
                 }
             } else {
@@ -191,6 +238,32 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setAdapter(adapter);
     }
 
+    private boolean checkPermission() {
+        return ContextCompat.checkSelfPermission(this,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void requestStoragePermission() {
+        //        笔记：requestPermissions是异步的、非阻塞的。
+        ActivityCompat.requestPermissions(this,
+                new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                REQUEST_CODE_WRITE_EXTERNAL_STORAGE);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        String TAG = "onRequestPermissionsResult";
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_CODE_WRITE_EXTERNAL_STORAGE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Log.d(TAG, "onRequestPermissionsResult: PERMISSION_GRANTED");
+            } else {
+                Log.e(TAG, "onRequestPermissionsResult: NOT PERMISSION_GRANTED");
+            }
+        }
+    }
+
     @TargetApi(26)
     private void requestAccessAndroidData(Activity activity){
         try {
@@ -226,7 +299,7 @@ public class MainActivity extends AppCompatActivity {
         startActivityForResult(intent, REQUEST_CODE_OPEN_DOCUMENT_TREE);
 
         // 初始化 ActivityResultLauncher，仅在API 21及以上使用
-        ActivityResultLauncher<Intent> openDocumentTreeLauncher = null;
+//        ActivityResultLauncher<Intent> openDocumentTreeLauncher = null;
 //        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             // 初始化 ActivityResultLauncher
 //            openDocumentTreeLauncher = registerForActivityResult(
@@ -263,7 +336,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private static boolean updateLocalizationFile(String dirPath, int newValue) {
+        String TAG = "updateLocalizationFile";
         File localizationFile = new File(dirPath, "files/localization.txt");
+        Log.d(TAG, "updateLocalizationFile: localizationFile = "+localizationFile.getAbsolutePath());
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(localizationFile))) {
             writer.write("localization = " + newValue);
             return true;
@@ -295,7 +370,7 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == REQUEST_CODE_STORAGE_PERMISSION) {
             if (Environment.isExternalStorageManager()) {
                 // 用户已授予权限
-                Toast.makeText(this, "已授权", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "已授权 MANAGE_EXTERNAL_STORAGE, Environment.isExternalStorageManager() = true", Toast.LENGTH_LONG).show();
             } else {
                 // 用户拒绝权限
                 Toast.makeText(this, "权限被拒绝，无法访问 Android/data 目录", Toast.LENGTH_LONG).show();
@@ -373,6 +448,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     static class MyRecyclerViewAdapter extends RecyclerView.Adapter<MyRecyclerViewAdapter.MyViewHolder> {
+        private static final String TAG = "MyRecyclerViewAdapter: ";
         private List<MyRecyclerViewItem> itemList;
 
         public MyRecyclerViewAdapter(List<MyRecyclerViewItem> itemList) {
@@ -400,7 +476,9 @@ public class MainActivity extends AppCompatActivity {
             // 设置按钮点击事件，切换 X 值
             holder.xValueButton.setOnClickListener(v -> {
                 Integer newXValue = item.getOpposingXValue();
-                if ( updateLocalizationFile(item.packageName, newXValue) ) {
+                String dirPath = String.join("/", dataDirectoryPath, item.packageName);
+                Log.d(TAG, "onBindViewHolder: dirPath = "+dirPath);
+                if ( updateLocalizationFile(dirPath, newXValue) ) {
                     item.toggleXValue();
                     localizationValues.put(item.packageName, newXValue);
                     notifyItemChanged(position); // 通知数据已更新，刷新视图
