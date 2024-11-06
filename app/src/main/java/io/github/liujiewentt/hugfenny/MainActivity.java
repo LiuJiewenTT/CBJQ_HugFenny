@@ -1,7 +1,10 @@
 package io.github.liujiewentt.hugfenny;
 
-
+import static android.os.Build.VERSION.SDK_INT;
 import static android.os.SystemClock.sleep;
+import android.provider.DocumentsContract;
+//import "android.provider.extra.INITIAL_URI";
+import static android.provider.DocumentsContract.EXTRA_INITIAL_URI;
 import android.Manifest;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.ActivityResultCallback;
@@ -44,17 +47,23 @@ import android.widget.Toast;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 
 public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_OPEN_DOCUMENT_TREE = 1000;
+    private static final int REQUEST_CODE_OPEN_TREE = 1001;
     private static final int REQUEST_CODE_STORAGE_PERMISSION = 1;
     private static final int REQUEST_CODE_WRITE_EXTERNAL_STORAGE = 101;
     static Map<String, Integer> localizationValues;
@@ -180,11 +189,35 @@ public class MainActivity extends AppCompatActivity {
 
         localizationValues = new HashMap<>();
 
+        List<Uri> saveduris = getSavedUrisFromSharedPreferences();
+        Map<String, String> packageUriMap = new HashMap<>();
+        if (saveduris == null) {
+            Log.d(TAG, "Main: saveduris is null.");
+            for (String dirName : projectDirs) {
+                String dirPath = String.join("/", dataDirectoryPath, dirName);
+                // 使用 Uri.parse() 将 dirPath 转换为 Uri
+                Uri dirUri = Uri.parse("file://" + dirPath);  // 你可以直接构建 Uri，或者用特定方式转换为合适的 URI
+                // 发起 SAF 请求
+                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+                intent.putExtra("android.provider.extra.INITIAL_URI", dirUri);  // 指定初始 URI 为目标目录
+//            intent.putExtra(Intent.EXTRA_INITIAL_URI, dirUri);  // 指定初始 URI 为目标目录
+                startActivityForResult(intent, REQUEST_CODE_OPEN_TREE);
+                packageUriMap.put(dirName, dirUri.toString());
+            }
+        } else {
+            for (Uri uri: saveduris) {
+                Log.d(TAG, "Main: Read Saved Uri: "+uri.toString());
+            }
+        }
+        
+
         for (String dirName : projectDirs) {
             String dirPath = String.join("/", dataDirectoryPath, dirName);
-            File localizationFile = new File(dirPath, "files/localization.txt");
-            if (localizationFile.exists()) {
-                try (BufferedReader reader = new BufferedReader(new FileReader(localizationFile))) {
+            Uri dirUri = Uri.parse(packageUriMap.get(dirName));
+            Uri fileUri = Uri.withAppendedPath(dirUri, "files/localization.txt");
+            try {
+                InputStream inputStream = getContentResolver().openInputStream(fileUri);
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
                         if (line.startsWith("localization =")) {
@@ -196,9 +229,29 @@ public class MainActivity extends AppCompatActivity {
                     Log.e(TAG, "Main: 无法读取xvalue, 文件："+dirPath );
                     e.printStackTrace();
                 }
-            } else {
-                Log.e(TAG, "Main: file not exist: " + localizationFile.getPath());
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException(e);
             }
+//            File localizationFile = new File(dirUri.getPath(), "files/localization.txt");
+
+//            File localizationFile = new File(dirPath, "files/localization.txt");
+//            if (localizationFile.exists()) {
+
+//                try (BufferedReader reader = new BufferedReader(new FileReader(localizationFile))) {
+//                    String line;
+//                    while ((line = reader.readLine()) != null) {
+//                        if (line.startsWith("localization =")) {
+//                            String value = line.split("=")[1].trim();
+//                            localizationValues.put(dirName, Integer.parseInt(value));
+//                        }
+//                    }
+//                } catch (IOException e) {
+//                    Log.e(TAG, "Main: 无法读取xvalue, 文件："+dirPath );
+//                    e.printStackTrace();
+//                }
+//            } else {
+//                Log.e(TAG, "Main: file not exist: " + localizationFile.getPath());
+//            }
         }
 
         if (localizationValues == null) {
@@ -362,6 +415,50 @@ public class MainActivity extends AppCompatActivity {
         return uriString != null ? Uri.parse(uriString) : null;
     }
 
+    private void saveUriToSharedPreferences(Uri uri) {
+        SharedPreferences preferences = getSharedPreferences("AppPrefs", MODE_PRIVATE);
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.putString("selected_directory_uri", uri.toString());
+        editor.apply();
+    }
+
+    private Uri getSavedUriFromSharedPreferences() {
+        SharedPreferences preferences = getSharedPreferences("AppPrefs", MODE_PRIVATE);
+        String uriString = preferences.getString("selected_directory_uri", null);
+        if (uriString != null) {
+            return Uri.parse(uriString);
+        }
+        return null;
+    }
+
+    private void saveUrisToSharedPreferences(List<Uri> uris) {
+        SharedPreferences preferences = getSharedPreferences("AppPrefs", MODE_PRIVATE);
+        SharedPreferences.Editor editor = preferences.edit();
+
+        Set<String> uriSet = new HashSet<>();
+        for (Uri uri : uris) {
+            uriSet.add(uri.toString());  // 转换 Uri 为字符串
+        }
+
+        editor.putStringSet("uris", uriSet);  // 使用 Set<String> 存储 URI 字符串
+        editor.apply();
+    }
+
+    private List<Uri> getSavedUrisFromSharedPreferences() {
+        SharedPreferences preferences = getSharedPreferences("AppPrefs", MODE_PRIVATE);
+        Set<String> uriStrings = preferences.getStringSet("uris", null);
+
+        if (uriStrings != null) {
+            List<Uri> uris = new ArrayList<>();
+            for (String uriString : uriStrings) {
+                uris.add(Uri.parse(uriString));  // 将每个字符串转回 Uri
+            }
+            return uris;
+        }
+        return null;
+    }
+
+
     @RequiresApi(api = Build.VERSION_CODES.R)
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
@@ -401,9 +498,20 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
 //                File[] subDirs = directory.listFiles(File::isDirectory);
-
             }
+        }
+        if (requestCode == REQUEST_CODE_OPEN_TREE && resultCode == RESULT_OK) {
+            if (data != null) {
+                Uri uri = data.getData();  // 获取用户选中的 URI
+                if (uri != null) {
+                    // 持久化 URI 到 SharedPreferences 或其他存储
 
+//                    saveUriToSharedPreferences(uri);
+                    List<Uri> uris = getSavedUrisFromSharedPreferences();
+                    uris.add(uri);
+                    saveUrisToSharedPreferences(uris);
+                }
+            }
         }
     }
 
