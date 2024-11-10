@@ -5,6 +5,7 @@ import static android.os.SystemClock.sleep;
 import android.provider.DocumentsContract;
 //import "android.provider.extra.INITIAL_URI";
 import static android.provider.DocumentsContract.EXTRA_INITIAL_URI;
+
 import android.Manifest;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.ActivityResultCallback;
@@ -73,6 +74,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static String dataDirectoryPath = null;
     private static String extSdRootPath = null;
+    private static String COM_ANDROID_EXTERNALSTORAGE_DOCUMENTS = "com.android.externalstorage.documents";
 
     static public Map<String, String> remarkMap = Map.of(
             "com.dragonli.projectsnow.lhm", "官服",
@@ -196,12 +198,26 @@ public class MainActivity extends AppCompatActivity {
             for (String dirName : projectDirs) {
                 String dirPath = String.join("/", dataDirectoryPath, dirName);
                 // 使用 Uri.parse() 将 dirPath 转换为 Uri
-                Uri dirUri = Uri.parse("file://" + dirPath);  // 你可以直接构建 Uri，或者用特定方式转换为合适的 URI
+                // Example: content://com.android.externalstorage.documents/tree/primary:Android/data/com.baidu.BaiduMap
+                String documentId = "primary:" + dirName;
+                Uri documentUri = DocumentsContract.buildTreeDocumentUri(COM_ANDROID_EXTERNALSTORAGE_DOCUMENTS, documentId);
+                Uri dirUri = Uri.parse(documentUri.toString());  // 你可以直接构建 Uri，或者用特定方式转换为合适的 URI
+                Log.d(TAG, "Main: documentUri = " + documentUri.toString());
                 // 发起 SAF 请求
-                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-                intent.putExtra("android.provider.extra.INITIAL_URI", dirUri);  // 指定初始 URI 为目标目录
-//            intent.putExtra(Intent.EXTRA_INITIAL_URI, dirUri);  // 指定初始 URI 为目标目录
-                startActivityForResult(intent, REQUEST_CODE_OPEN_TREE);
+                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).putExtra(DocumentsContract.EXTRA_INITIAL_URI, dirUri);
+//                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+//                intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, dirUri);
+//                intent.putExtra("android.provider.extra.INITIAL_URI", dirUri);  // 指定初始 URI 为目标目录
+//            intent.putExtra(Intent.EXTRA_INITIAL_URI, dirUri);  // 指定初始 URI 为目标   目录
+                startActivityForResult(intent, REQUEST_CODE_OPEN_TREE);   // 找不到啊，用不了。
+// java.lang.SecurityException: Permission Denial: opening provider com.android.externalstorage.ExternalStorageProvider from ProcessRecord{14f7a42 29496:io.github.liujiewentt.hugfenny/u0a380} (pid=29496, uid=10380) requires that you obtain access using ACTION_OPEN_DOCUMENT or related APIs
+//                new ActivityResultContracts.StartActivityForResult()
+//                if (this.resovle(intent.packageManager) != null) {
+//                    callback.run()
+//                } else {
+//                    AppConfig.toast(intent, R.string.no_app_found_intent)
+//                }
+
                 packageUriMap.put(dirName, dirUri.toString());
             }
         } else {
@@ -504,6 +520,11 @@ public class MainActivity extends AppCompatActivity {
             if (data != null) {
                 Uri uri = data.getData();  // 获取用户选中的 URI
                 if (uri != null) {
+                    getContentResolver()
+                            .takePersistableUriPermission(
+                                    uri,
+                                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                            | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
                     // 持久化 URI 到 SharedPreferences 或其他存储
 
 //                    saveUriToSharedPreferences(uri);
