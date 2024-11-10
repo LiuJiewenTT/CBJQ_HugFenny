@@ -7,6 +7,8 @@ import android.provider.DocumentsContract;
 import static android.provider.DocumentsContract.EXTRA_INITIAL_URI;
 
 import android.Manifest;
+
+import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -199,7 +201,7 @@ public class MainActivity extends AppCompatActivity {
                 String dirPath = String.join("/", dataDirectoryPath, dirName);
                 // 使用 Uri.parse() 将 dirPath 转换为 Uri
                 // Example: content://com.android.externalstorage.documents/tree/primary:Android/data/com.baidu.BaiduMap
-                String documentId = "primary:" + dirName;
+                String documentId = "primary:" + "Android/data/" + dirName;
                 Uri documentUri = DocumentsContract.buildTreeDocumentUri(COM_ANDROID_EXTERNALSTORAGE_DOCUMENTS, documentId);
                 Uri dirUri = Uri.parse(documentUri.toString());  // 你可以直接构建 Uri，或者用特定方式转换为合适的 URI
                 Log.d(TAG, "Main: documentUri = " + documentUri.toString());
@@ -209,14 +211,9 @@ public class MainActivity extends AppCompatActivity {
 //                intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, dirUri);
 //                intent.putExtra("android.provider.extra.INITIAL_URI", dirUri);  // 指定初始 URI 为目标目录
 //            intent.putExtra(Intent.EXTRA_INITIAL_URI, dirUri);  // 指定初始 URI 为目标   目录
-                startActivityForResult(intent, REQUEST_CODE_OPEN_TREE);   // 找不到啊，用不了。
+//                startActivityForResult(intent, REQUEST_CODE_OPEN_TREE);   // 找不到啊，用不了。
 // java.lang.SecurityException: Permission Denial: opening provider com.android.externalstorage.ExternalStorageProvider from ProcessRecord{14f7a42 29496:io.github.liujiewentt.hugfenny/u0a380} (pid=29496, uid=10380) requires that you obtain access using ACTION_OPEN_DOCUMENT or related APIs
-//                new ActivityResultContracts.StartActivityForResult()
-//                if (this.resovle(intent.packageManager) != null) {
-//                    callback.run()
-//                } else {
-//                    AppConfig.toast(intent, R.string.no_app_found_intent)
-//                }
+                handleDocumentUriForRestrictedDirectories.launch(intent);
 
                 packageUriMap.put(dirName, dirUri.toString());
             }
@@ -225,12 +222,12 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, "Main: Read Saved Uri: "+uri.toString());
             }
         }
-        
+        sleep(10*1000);
 
         for (String dirName : projectDirs) {
-            String dirPath = String.join("/", dataDirectoryPath, dirName);
-            Uri dirUri = Uri.parse(packageUriMap.get(dirName));
-            Uri fileUri = Uri.withAppendedPath(dirUri, "files/localization.txt");
+            String documentId = "primary:" + "Android/data/" + dirName + "files%2Flocalization.txt";
+            Uri documentUri = DocumentsContract.buildTreeDocumentUri(COM_ANDROID_EXTERNALSTORAGE_DOCUMENTS, documentId);
+            Uri fileUri = Uri.parse(documentUri.toString());  // 你可以直接构建 Uri，或者用特定方式转换为合适的 URI
             try {
                 InputStream inputStream = getContentResolver().openInputStream(fileUri);
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
@@ -242,7 +239,7 @@ public class MainActivity extends AppCompatActivity {
                         }
                     }
                 } catch (IOException e) {
-                    Log.e(TAG, "Main: 无法读取xvalue, 文件："+dirPath );
+                    Log.e(TAG, "Main: 无法读取xvalue, 文件：" + documentUri.toString() );
                     e.printStackTrace();
                 }
             } catch (FileNotFoundException e) {
@@ -368,9 +365,9 @@ public class MainActivity extends AppCompatActivity {
         startActivityForResult(intent, REQUEST_CODE_OPEN_DOCUMENT_TREE);
 
         // 初始化 ActivityResultLauncher，仅在API 21及以上使用
-//        ActivityResultLauncher<Intent> openDocumentTreeLauncher = null;
+        ActivityResultLauncher<Intent> openDocumentTreeLauncher = null;
 //        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            // 初始化 ActivityResultLauncher
+////             初始化 ActivityResultLauncher
 //            openDocumentTreeLauncher = registerForActivityResult(
 //                    new ActivityResultContracts.StartActivityForResult(),
 //                    new ActivityResultCallback<androidx.activity.result.ActivityResult>() {
@@ -651,6 +648,32 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
+
+    private final ActivityResultLauncher<Intent> handleDocumentUriForRestrictedDirectories =
+            registerForActivityResult(
+                    new ActivityResultContracts.StartActivityForResult(),
+                    new ActivityResultCallback<androidx.activity.result.ActivityResult>() {
+                        @Override
+                        public void onActivityResult(androidx.activity.result.ActivityResult result) {
+                            if (result.getResultCode() == RESULT_OK) {
+                                Intent data = result.getData();
+                                if (data != null) {
+                                    Uri uri = data.getData();
+                                    if (uri != null) {
+                                        // 处理返回的 URI（选中的目录）
+                                        getContentResolver().takePersistableUriPermission(uri,
+                                                Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                                | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                                        Toast.makeText(MainActivity.this, "Directory selected: " + uri.getPath(), Toast.LENGTH_SHORT).show();
+                                    } else {
+                                        Toast.makeText(MainActivity.this, "No directory selected", Toast.LENGTH_SHORT).show();
+                                    }
+                                }
+                            }
+                        }
+                    });
+
 
 
 }
