@@ -2,6 +2,8 @@ package io.github.liujiewentt.hugfenny;
 
 import static android.os.Build.VERSION.SDK_INT;
 import static android.os.SystemClock.sleep;
+
+import android.content.UriPermission;
 import android.provider.DocumentsContract;
 //import "android.provider.extra.INITIAL_URI";
 import static android.provider.DocumentsContract.EXTRA_INITIAL_URI;
@@ -205,17 +207,48 @@ public class MainActivity extends AppCompatActivity {
                 Uri documentUri = DocumentsContract.buildTreeDocumentUri(COM_ANDROID_EXTERNALSTORAGE_DOCUMENTS, documentId);
                 Uri dirUri = Uri.parse(documentUri.toString());  // 你可以直接构建 Uri，或者用特定方式转换为合适的 URI
                 Log.d(TAG, "Main: documentUri = " + documentUri.toString());
-                // 发起 SAF 请求
-                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).putExtra(DocumentsContract.EXTRA_INITIAL_URI, dirUri);
+                boolean hasAccessToSpecialFolder = false;
+                List<UriPermission> uriPermissions =
+                        getContentResolver().getPersistedUriPermissions();
+
+                if (uriPermissions != null && uriPermissions.size() > 0) {
+                    for (UriPermission p : uriPermissions) {
+                        if (p.isReadPermission() && documentUri.toString().startsWith(p.getUri().toString())) {
+                            hasAccessToSpecialFolder = true;
+                            break;
+                        }
+                    }
+                }
+                if (!hasAccessToSpecialFolder) {
+                    // 发起 SAF 请求
+                    Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).putExtra(DocumentsContract.EXTRA_INITIAL_URI, dirUri);
 //                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
 //                intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, dirUri);
 //                intent.putExtra("android.provider.extra.INITIAL_URI", dirUri);  // 指定初始 URI 为目标目录
 //            intent.putExtra(Intent.EXTRA_INITIAL_URI, dirUri);  // 指定初始 URI 为目标   目录
+                    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                            | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
 //                startActivityForResult(intent, REQUEST_CODE_OPEN_TREE);   // 找不到啊，用不了。
 // java.lang.SecurityException: Permission Denial: opening provider com.android.externalstorage.ExternalStorageProvider from ProcessRecord{14f7a42 29496:io.github.liujiewentt.hugfenny/u0a380} (pid=29496, uid=10380) requires that you obtain access using ACTION_OPEN_DOCUMENT or related APIs
-                handleDocumentUriForRestrictedDirectories.launch(intent);
+                    handleDocumentUriForRestrictedDirectories.launch(intent);
+                } else {
+                    Log.d(TAG, "Main: hasAccessToSpecialFolder == true");
+                }
 
                 packageUriMap.put(dirName, dirUri.toString());
+//                if (uriPermissions != null && uriPermissions.size() > 0) {
+//                    for (UriPermission p : uriPermissions) {
+//                        if (p.isReadPermission() && documentUri.toString().startsWith(p.getUri().toString())) {
+//                            hasAccessToSpecialFolder = true;
+//                            break;
+//                        }
+//                    }
+//                }
+//                if (!hasAccessToSpecialFolder) {
+//                    Log.d(TAG, "Main: hasAccessToSpecialFolder == false");
+//                    return;
+//                }
             }
         } else {
             for (Uri uri: saveduris) {
@@ -228,6 +261,7 @@ public class MainActivity extends AppCompatActivity {
             String documentId = "primary:" + "Android/data/" + dirName + "files%2Flocalization.txt";
             Uri documentUri = DocumentsContract.buildTreeDocumentUri(COM_ANDROID_EXTERNALSTORAGE_DOCUMENTS, documentId);
             Uri fileUri = Uri.parse(documentUri.toString());  // 你可以直接构建 Uri，或者用特定方式转换为合适的 URI
+            Log.d(TAG, "Main: fileUri: " + fileUri.toString());
             try {
                 InputStream inputStream = getContentResolver().openInputStream(fileUri);
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
@@ -238,12 +272,13 @@ public class MainActivity extends AppCompatActivity {
                             localizationValues.put(dirName, Integer.parseInt(value));
                         }
                     }
-                } catch (IOException e) {
-                    Log.e(TAG, "Main: 无法读取xvalue, 文件：" + documentUri.toString() );
+                } catch (Exception e) {
+                    Log.e(TAG, "Main: 无法读取xvalue, 文件：" + documentUri.toString(), e );
                     e.printStackTrace();
                 }
-            } catch (FileNotFoundException e) {
-                throw new RuntimeException(e);
+            } catch (Exception e) {
+                Log.e(TAG, "Main: ", e);
+//                throw new RuntimeException(e);
             }
 //            File localizationFile = new File(dirUri.getPath(), "files/localization.txt");
 
