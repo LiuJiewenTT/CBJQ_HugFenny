@@ -58,6 +58,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -222,15 +224,10 @@ public class MainActivity extends AppCompatActivity {
                 if (!hasAccessToSpecialFolder) {
                     // 发起 SAF 请求
                     Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).putExtra(DocumentsContract.EXTRA_INITIAL_URI, dirUri);
-//                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-//                intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, dirUri);
-//                intent.putExtra("android.provider.extra.INITIAL_URI", dirUri);  // 指定初始 URI 为目标目录
-//            intent.putExtra(Intent.EXTRA_INITIAL_URI, dirUri);  // 指定初始 URI 为目标   目录
                     intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
                             | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                             | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
 //                startActivityForResult(intent, REQUEST_CODE_OPEN_TREE);   // 找不到啊，用不了。
-// java.lang.SecurityException: Permission Denial: opening provider com.android.externalstorage.ExternalStorageProvider from ProcessRecord{14f7a42 29496:io.github.liujiewentt.hugfenny/u0a380} (pid=29496, uid=10380) requires that you obtain access using ACTION_OPEN_DOCUMENT or related APIs
                     handleDocumentUriForRestrictedDirectories.launch(intent);
                 } else {
                     Log.d(TAG, "Main: hasAccessToSpecialFolder == true");
@@ -255,7 +252,7 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, "Main: Read Saved Uri: "+uri.toString());
             }
         }
-        sleep(10*1000);
+//        sleep(3*1000);
 
         for (String dirName : projectDirs) {
             String documentId = "primary:" + "Android/data/" + dirName + "files%2Flocalization.txt";
@@ -436,17 +433,26 @@ public class MainActivity extends AppCompatActivity {
 //        }
     }
 
-    private static boolean updateLocalizationFile(String dirPath, int newValue) {
+    private boolean updateLocalizationFile(String dirPath, int newValue) {
         String TAG = "updateLocalizationFile";
-        File localizationFile = new File(dirPath, "files/localization.txt");
-        Log.d(TAG, "updateLocalizationFile: localizationFile = "+localizationFile.getAbsolutePath());
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(localizationFile))) {
-            writer.write("localization = " + newValue);
-            return true;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
+        String documentId = dirPath + "%2Ffiles%2Flocalization.txt";
+        Uri fileUri = Uri.parse(documentId);  // 你可以直接构建 Uri，或者用特定方式转换为合适的 URI
+        Log.d(TAG, "Main: fileUri: " + fileUri.toString());
+        try {
+            OutputStream outputStream = getContentResolver().openOutputStream(fileUri);
+            try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream))) {
+                writer.write("localization = " + newValue);
+                return true;
+            } catch (Exception e) {
+                Log.e(TAG, "Main: 无法写入xvalue, 文件：" + documentId, e );
+                e.printStackTrace();
+                return false;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Main: ", e);
+//                throw new RuntimeException(e);
         }
+        return false;
     }
 
     // 获取和保存 URI
@@ -608,7 +614,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    static class MyRecyclerViewAdapter extends RecyclerView.Adapter<MyRecyclerViewAdapter.MyViewHolder> {
+    class MyRecyclerViewAdapter extends RecyclerView.Adapter<MyRecyclerViewAdapter.MyViewHolder> {
         private static final String TAG = "MyRecyclerViewAdapter: ";
         private List<MyRecyclerViewItem> itemList;
 
@@ -637,8 +643,35 @@ public class MainActivity extends AppCompatActivity {
             // 设置按钮点击事件，切换 X 值
             holder.xValueButton.setOnClickListener(v -> {
                 Integer newXValue = item.getOpposingXValue();
-                String dirPath = String.join("/", dataDirectoryPath, item.packageName);
+                String documentId = "primary:" + "Android/data/" + item.packageName;
+                Uri documentUri = DocumentsContract.buildTreeDocumentUri(COM_ANDROID_EXTERNALSTORAGE_DOCUMENTS, documentId);
+                String dirPath = documentUri.toString();
+                Uri dirUri = Uri.parse(documentUri.toString());  // 你可以直接构建 Uri，或者用特定方式转换为合适的 URI
+                Log.d(TAG, "Main: documentUri = " + documentUri.toString());
+//                String dirPath = String.join("/", dataDirectoryPath, item.packageName);
                 Log.d(TAG, "onBindViewHolder: dirPath = "+dirPath);
+                boolean hasAccessToSpecialFolder = false;
+                List<UriPermission> uriPermissions =
+                        getContentResolver().getPersistedUriPermissions();
+                if (uriPermissions != null && uriPermissions.size() > 0) {
+                    for (UriPermission p : uriPermissions) {
+                        if (p.isReadPermission() && documentUri.toString().startsWith(p.getUri().toString())) {
+                            hasAccessToSpecialFolder = true;
+                            break;
+                        }
+                    }
+                }
+                if (!hasAccessToSpecialFolder) {
+                    // 发起 SAF 请求
+                    Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).putExtra(DocumentsContract.EXTRA_INITIAL_URI, dirUri);
+                    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                            | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+//                startActivityForResult(intent, REQUEST_CODE_OPEN_TREE);   // 找不到啊，用不了。
+                    handleDocumentUriForRestrictedDirectories.launch(intent);
+                } else {
+                    Log.d(TAG, "Main: hasAccessToSpecialFolder == true");
+                }
                 if ( updateLocalizationFile(dirPath, newXValue) ) {
                     item.toggleXValue();
                     localizationValues.put(item.packageName, newXValue);
@@ -646,19 +679,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
 
-//        String packageName = // 获取包名
-//        int xValue = localizationValues.get(packageName); // 从存储中获取 x 值
-//        holder.appIcon.setImageDrawable(appIcon); // 设置图标
-//        holder.appRemark.setText(remarks.get(packageName)); // 设置备注
-//        holder.xValue.setText(String.valueOf(xValue)); // 显示 x 值
-//
-//        holder.toggleButton.setOnClickListener(v -> {
-//            // 切换 x 值
-//            int newValue = xValue == 1 ? 0 : 1;
-//            localizationValues.put(packageName, newValue); // 更新存储
-//            holder.xValue.setText(String.valueOf(newValue)); // 更新显示
-//            updateLocalizationFile(packageName, newValue); // 更新文件
-//        });
         }
 
         @Override
@@ -666,7 +686,7 @@ public class MainActivity extends AppCompatActivity {
             return itemList.size();
         }
 
-        public static class MyViewHolder extends RecyclerView.ViewHolder {
+        public class MyViewHolder extends RecyclerView.ViewHolder {
             TextView packageNameTextView;
             TextView remarkTextView;
             ImageView iconImageView;
