@@ -36,6 +36,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import rikka.shizuku.Shizuku;
+import rikka.shizuku.ShizukuBinderWrapper;
+import rikka.shizuku.ShizukuProvider;
+
 import io.github.liujiewentt.hugfenny.AppRecyclerViewAdapter;
 import io.github.liujiewentt.hugfenny.AppRecyclerViewItem;
 

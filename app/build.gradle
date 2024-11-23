@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.rikka.refine)
 }
 
 android {
@@ -38,6 +39,26 @@ android {
 }
 
 dependencies {
+    runtimeOnly libs.androidx.annotation
+//    implementation libs.api
+//    implementation libs.provider
+//    implementation files('libs/api-13.1.5.aar')
+//    implementation files('libs/provider-13.1.5.aar')
+//    implementation project(':api')
+//    implementation project(':provider')
+
+
+    def shizuku_version = '13.1.5'
+//    implementation 'dev.rikka.shizuku:api:13.1.5'
+//    implementation(name: 'api-13.1.5', ext: 'aar')
+//    implementation files('libs/api-13.1.5.aar')
+//    implementation 'dev.rikka.shizuku:provider:13.1.5'
+//    implementation(name: 'provider-13.1.5', ext: 'aar')
+//    implementation files('libs/provider-13.1.5.aar')
+
+    implementation libs.rikka.shizuku.api
+    implementation libs.rikka.shizuku.provider
+
 
     implementation libs.androidx.core.ktx
     implementation libs.androidx.lifecycle.runtime.ktx
