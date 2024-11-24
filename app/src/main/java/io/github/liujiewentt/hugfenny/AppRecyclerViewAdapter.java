@@ -46,6 +46,21 @@ public class AppRecyclerViewAdapter extends RecyclerView.Adapter<AppRecyclerView
         holder.iconImageView.setImageDrawable(item.getIcon());
         holder.xValueTextView.setText(item.getXValue().toString());
 
+        holder.xValueTextView.setOnClickListener(v -> {
+            Integer newXValue;
+            String newXValue_str;
+            String dirPath = String.join("/", Common.dataDirectoryPath, item.packageName);
+            newXValue_str = Common.readLocalizationFile(dirPath);
+            if (!newXValue_str.isEmpty()) {
+                newXValue = Integer.valueOf(newXValue_str);
+                Common.localizationValues.replace(item.packageName, newXValue);
+                holder.xValueTextView.setText(newXValue_str);
+            } else {
+                newXValue = -1;
+                holder.xValueTextView.setText("-1");
+            }
+        });
+
         // 设置按钮点击事件，切换 X 值
         holder.xValueButton.setOnClickListener(v -> {
             Integer newXValue = item.getOpposingXValue();

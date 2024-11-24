@@ -1,4 +1,4 @@
-package io.github.liujiewentt.hugfenny.shizuku;
+package io.github.liujiewentt.hugfenny;
 
 interface IUserService {
     void destroy() = 16777114; // Destroy method defined by Shizuku server

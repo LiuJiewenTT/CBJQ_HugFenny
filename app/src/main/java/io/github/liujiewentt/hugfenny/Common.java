@@ -15,7 +15,7 @@ import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-import io.github.liujiewentt.hugfenny.shizuku.IUserService;
+import io.github.liujiewentt.hugfenny.IUserService;
 import rikka.shizuku.Shizuku;
 import rikka.shizuku.ShizukuBinderWrapper;
 import rikka.shizuku.ShizukuProvider;

@@ -1,4 +1,4 @@
-package io.github.liujiewentt.hugfenny.shizuku;
+package io.github.liujiewentt.hugfenny;
 
 import android.content.Context;
 import android.os.RemoteException;
@@ -8,7 +8,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
-import io.github.liujiewentt.hugfenny.shizuku.IUserService;
+import io.github.liujiewentt.hugfenny.IUserService;
 
 public class UserService extends IUserService.Stub {
 
