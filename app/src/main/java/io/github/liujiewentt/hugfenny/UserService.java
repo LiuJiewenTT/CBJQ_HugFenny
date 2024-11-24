@@ -43,7 +43,9 @@ public class UserService extends IUserService.Stub {
             while ((line = bufferedReader.readLine()) != null) {
                 stringBuilder.append(line).append("\n");
             }
-        } catch (IOException e) {
+            inputStreamReader.close();
+            process.waitFor();
+        } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
         return stringBuilder.toString();

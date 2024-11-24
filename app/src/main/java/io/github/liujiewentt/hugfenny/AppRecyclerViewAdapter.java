@@ -58,6 +58,8 @@ public class AppRecyclerViewAdapter extends RecyclerView.Adapter<AppRecyclerView
             } else {
                 newXValue = -1;
                 holder.xValueTextView.setText("-1");
+                item.xValue = newXValue;
+                Common.localizationValues.remove(item.packageName);
             }
         });
 

@@ -58,7 +58,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-//        requestShizukuPermission();
+        requestShizukuPermission();
         // 绑定 Shizuku 服务
         Shizuku.addRequestPermissionResultListener(onRequestPermissionResultListener);
         // 添加权限申请监听
@@ -74,6 +74,7 @@ public class MainActivity extends AppCompatActivity {
             }
         } else {
             System.out.println("Shizuku 服务未启动，请确保它正在运行！");
+            Toast.makeText(MainActivity.this, "Shizuku 服务未启动，请确保它正在运行！", Toast.LENGTH_SHORT).show();
         }
 
 //        Shizuku.addRequestPermissionResultListener(onRequestPermissionResultListener);
@@ -118,14 +119,14 @@ public class MainActivity extends AppCompatActivity {
     private final Shizuku.OnBinderDeadListener onBinderDeadListener = new Shizuku.OnBinderDeadListener() {
         @Override
         public void onBinderDead() {
-            Toast.makeText(MainActivity.this, "Shizuku服务终止", Toast.LENGTH_SHORT).show();
+            Toast.makeText(MainActivity.this, "Shizuku服务终止，binder失效", Toast.LENGTH_SHORT).show();
         }
     };
 
     private final Shizuku.OnBinderReceivedListener onBinderReceivedListener = new Shizuku.OnBinderReceivedListener() {
         @Override
         public void onBinderReceived() {
-            Toast.makeText(MainActivity.this, "Shizuku服务启动", Toast.LENGTH_SHORT).show();
+            Toast.makeText(MainActivity.this, "Shizuku服务已启动，收到binder", Toast.LENGTH_SHORT).show();
             Common.shizuku_ibinder = Shizuku.getBinder();
             Common.iUserService = UserService.asInterface(Common.shizuku_ibinder);
         }
@@ -143,21 +144,24 @@ public class MainActivity extends AppCompatActivity {
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
-            Toast.makeText(MainActivity.this, "服务连接成功", Toast.LENGTH_SHORT).show();
+            Toast.makeText(MainActivity.this, "onServiceConnected: 服务连接成功", Toast.LENGTH_SHORT).show();
             Log.d(TAG, "onServiceConnected: 服务连接成功");
 
             if (iBinder != null && iBinder.pingBinder()) {
                 Log.d(TAG, "onServiceConnected: good ibinder.");
+                Toast.makeText(MainActivity.this, "binder可用", Toast.LENGTH_SHORT).show();
                 Common.shizuku_ibinder = iBinder;
-                Common.iUserService = IUserService.Stub.asInterface(iBinder);
+                Common.iUserService = UserService.asInterface(iBinder);
+//                Common.iUserService = IUserService.Stub.asInterface(iBinder);
             } else {
+                Toast.makeText(MainActivity.this, "binder不可用", Toast.LENGTH_SHORT).show();
                 throw new RuntimeException("no ibinder");
             }
         }
 
         @Override
         public void onServiceDisconnected(ComponentName componentName) {
-            Toast.makeText(MainActivity.this, "服务连接断开", Toast.LENGTH_SHORT).show();
+            Toast.makeText(MainActivity.this, "onServiceDisconnected: 服务连接断开", Toast.LENGTH_SHORT).show();
         }
     };
 
@@ -171,7 +175,7 @@ public class MainActivity extends AppCompatActivity {
     private void requestShizukuPermission() {
         boolean checked = checkPermission();
         if (checked) {
-            Toast.makeText(this, "已拥有权限", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "已拥有Shizuku权限", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -183,7 +187,7 @@ public class MainActivity extends AppCompatActivity {
         // 动态申请权限
 //        Shizuku.requestPermission(MainActivity.PERMISSION_CODE);
 //        Shizuku.requestPermission(MainActivity.RESULT_OK);
-        Shizuku.requestPermission(0);
+        Shizuku.requestPermission(10001);
     }
 
 
