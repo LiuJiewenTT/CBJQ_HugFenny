@@ -233,6 +233,7 @@ public class MainActivity extends AppCompatActivity {
         Common.localizationValues = new HashMap<>();
         Map<String, String> packageUriMap = new HashMap<>();
 
+        // 刚启动这边可能会读取错误。
         for (String dirName : projectDirs) {
             String documentPath = String.join("/", Common.dataDirectoryPath, dirName);
             String x_value = Common.readLocalizationFile(documentPath);
