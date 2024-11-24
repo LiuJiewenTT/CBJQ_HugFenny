@@ -34,6 +34,8 @@ android {
         jvmTarget = '11'
     }
     buildFeatures {
+        buildConfig true    // 开启BuildConfig类的生成
+        aidl true           // 启用aidl
         compose true
     }
 }

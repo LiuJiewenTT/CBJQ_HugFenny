@@ -1,10 +1,13 @@
 package io.github.liujiewentt.hugfenny;
 
+import android.util.Log;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import io.github.liujiewentt.hugfenny.Common;
 
 public class ShellUtils {
+
+    static String TAG = "ShellUtils";
 
     /**
      * 读取文件内容
@@ -14,7 +17,9 @@ public class ShellUtils {
      */
     public static String readFile(String filePath) throws Exception {
         String command = "cat " + filePath;
-        return executeShellCommand(command);
+        Log.d(TAG, "readFile: command: " + command);
+        return Common.iUserService.execCommand(command);
+//        return executeShellCommand(command);
     }
 
     /**
@@ -25,7 +30,9 @@ public class ShellUtils {
      */
     public static void writeFile(String filePath, String content) throws Exception {
         String command = "echo \"" + escapeShellArgument(content) + "\" > " + filePath;
-        executeShellCommand(command);
+        Log.d(TAG, "writeFile: command: " + command);
+        Common.iUserService.execCommand(command);
+//        executeShellCommand(command);
     }
 
     /**

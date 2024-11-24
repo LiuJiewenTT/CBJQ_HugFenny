@@ -1,5 +1,6 @@
 package io.github.liujiewentt.hugfenny;
 
+import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
 
@@ -14,6 +15,7 @@ import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
+import io.github.liujiewentt.hugfenny.shizuku.IUserService;
 import rikka.shizuku.Shizuku;
 import rikka.shizuku.ShizukuBinderWrapper;
 import rikka.shizuku.ShizukuProvider;
@@ -23,6 +25,8 @@ public class Common {
     static String TAG = "Common";
 
     public static boolean flag_high_priviledge = false;
+    public static IBinder shizuku_ibinder;
+    public static IUserService iUserService;
 
     static String extSdRootPath;
     static String dataDirectoryPath;

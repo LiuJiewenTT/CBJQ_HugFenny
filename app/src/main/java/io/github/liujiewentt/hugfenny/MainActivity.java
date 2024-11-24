@@ -6,11 +6,15 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.content.ComponentName;
+import android.content.ServiceConnection;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.IBinder;
+import android.os.RemoteException;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -36,13 +40,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import io.github.liujiewentt.hugfenny.shizuku.IUserService;
+import io.github.liujiewentt.hugfenny.shizuku.UserService;
 import rikka.shizuku.Shizuku;
 import rikka.shizuku.ShizukuBinderWrapper;
 import rikka.shizuku.ShizukuProvider;
 
 import io.github.liujiewentt.hugfenny.AppRecyclerViewAdapter;
 import io.github.liujiewentt.hugfenny.AppRecyclerViewItem;
-
+import io.github.liujiewentt.hugfenny.BuildConfig;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -77,30 +83,101 @@ public class MainActivity extends AppCompatActivity {
         Shizuku.addRequestPermissionResultListener((requestCode, grantResult) -> {
             if (requestCode == 0 && grantResult == PackageManager.PERMISSION_GRANTED) {
                 System.out.println("Shizuku 权限授予成功！");
+            } else {
+                System.out.println("Shizuku 权限授予失败！");
             }
         });
         requestShizukuPermission();
-        Common.flag_high_priviledge = true;
+        // 添加权限申请监听
+//        Common.flag_high_priviledge = true;
 
         // 检查 Shizuku 服务绑定
         if (Shizuku.getVersion() > 0) {
-            System.out.println("Shizuku 服务已绑定！");
+            IBinder iBinder = Shizuku.getBinder();
+            if( iBinder != null && iBinder.pingBinder() ){
+                System.out.println("Shizuku 服务已绑定且可用！");
+                Common.shizuku_ibinder = iBinder;
+//                sleep(5000);
+                Common.iUserService = UserService.asInterface(Common.shizuku_ibinder);
+                String tempstr1;
+                try {
+                    tempstr1 = Common.iUserService.execCommand("pwd");
+                    System.out.println(tempstr1);
+                } catch (Exception e) {
+                    Log.e(TAG, "onCreate: ", e);
+                }
+
+            } else {
+                System.out.println("Shizuku 服务未绑定！");
+            }
         } else {
             System.out.println("Shizuku 服务未启动，请确保它正在运行！");
         }
+
+        // Shiziku服务终止时调用该监听
+        Shizuku.addBinderDeadListener(() -> {
+            Toast.makeText(MainActivity.this, "Shizuku服务终止", Toast.LENGTH_SHORT).show();
+        });
+
+        Shizuku.bindUserService(userServiceArgs, serviceConnection);
 
         Main();
 
     }
 
-    private void requestShizukuPermission() {
-        if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_DENIED) {
-            Shizuku.requestPermission(0);
-            sleep(5000);
-        } else {
-            Log.d(TAG, "requestShizukuPermission: PERMISSION_GRANTED");
+    // 指定服务的各项参数
+    private final Shizuku.UserServiceArgs userServiceArgs =
+            new Shizuku.UserServiceArgs(new ComponentName(BuildConfig.APPLICATION_ID, UserService.class.getName()))
+                    .daemon(false)
+                    .processNameSuffix("adb_service")
+                    .debuggable(BuildConfig.DEBUG)
+                    .version(BuildConfig.VERSION_CODE);
+
+    // 建立服务连接通道
+    private final ServiceConnection serviceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+            Toast.makeText(MainActivity.this, "服务连接成功", Toast.LENGTH_SHORT).show();
+
+            if (iBinder != null && iBinder.pingBinder()) {
+                Log.d(TAG, "onServiceConnected: good ibinder.");
+                Common.shizuku_ibinder = iBinder;
+                Common.iUserService = UserService.asInterface(iBinder);
+            } else {
+                throw new RuntimeException("no ibinder");
+            }
         }
+
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+            Toast.makeText(MainActivity.this, "服务连接断开", Toast.LENGTH_SHORT).show();
+        }
+    };
+
+    /**
+     * 判断是否拥有shizuku adb shell权限
+     */
+    private boolean checkPermission() {
+        return Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED;
     }
+    private void requestShizukuPermission() {
+        boolean checked = checkPermission();
+        if (checked) {
+            Toast.makeText(this, "已拥有权限", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (Shizuku.isPreV11()) {
+            Toast.makeText(this, "当前shizuku版本不支持动态申请", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 动态申请权限
+//        Shizuku.requestPermission(MainActivity.PERMISSION_CODE);
+//        Shizuku.requestPermission(MainActivity.RESULT_OK);
+        Shizuku.requestPermission(0);
+    }
+
 
     protected void Main() {
         // 1. 获取 RecyclerView 实例
