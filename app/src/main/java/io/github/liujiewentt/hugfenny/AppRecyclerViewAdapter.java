@@ -44,12 +44,12 @@ public class AppRecyclerViewAdapter extends RecyclerView.Adapter<AppRecyclerView
         holder.packageNameTextView.setText(item.getPackageName());
         holder.remarkTextView.setText(item.getRemark());
         holder.iconImageView.setImageDrawable(item.getIcon());
-        holder.xValueTextView.setText(item.getXValue());
+        holder.xValueTextView.setText(item.getXValue().toString());
 
         // 设置按钮点击事件，切换 X 值
         holder.xValueButton.setOnClickListener(v -> {
             Integer newXValue = item.getOpposingXValue();
-            String dirPath = item.packageName;
+            String dirPath = String.join("/", Common.dataDirectoryPath, item.packageName);
 
             if ( Common.updateLocalizationFile(dirPath, newXValue) ) {
                 item.toggleXValue();

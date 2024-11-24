@@ -73,8 +73,33 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        // 绑定 Shizuku 服务
+        Shizuku.addRequestPermissionResultListener((requestCode, grantResult) -> {
+            if (requestCode == 0 && grantResult == PackageManager.PERMISSION_GRANTED) {
+                System.out.println("Shizuku 权限授予成功！");
+            }
+        });
+        requestShizukuPermission();
+        Common.flag_high_priviledge = true;
+
+        // 检查 Shizuku 服务绑定
+        if (Shizuku.getVersion() > 0) {
+            System.out.println("Shizuku 服务已绑定！");
+        } else {
+            System.out.println("Shizuku 服务未启动，请确保它正在运行！");
+        }
+
         Main();
 
+    }
+
+    private void requestShizukuPermission() {
+        if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_DENIED) {
+            Shizuku.requestPermission(0);
+            sleep(5000);
+        } else {
+            Log.d(TAG, "requestShizukuPermission: PERMISSION_GRANTED");
+        }
     }
 
     protected void Main() {
@@ -120,11 +145,15 @@ public class MainActivity extends AppCompatActivity {
         Map<String, String> packageUriMap = new HashMap<>();
 
         for (String dirName : projectDirs) {
-            break;  // need codes
+            String documentPath = String.join("/", Common.dataDirectoryPath, dirName);
+            String x_value = Common.readLocalizationFile(documentPath);
+            if (!x_value.isEmpty()) {
+                Common.localizationValues.put(dirName, Integer.valueOf(x_value));
+            }
         }
 
         if (Common.localizationValues == null) {
-            Log.e(TAG, "Main: localizationValues = null");
+            Log.e(TAG, "localizationValues = null");
 //            return;
         }
 
