@@ -50,7 +50,15 @@ public class AppRecyclerViewAdapter extends RecyclerView.Adapter<AppRecyclerView
             Integer newXValue;
             String newXValue_str;
             String dirPath = String.join("/", Common.dataDirectoryPath, item.packageName);
-            newXValue_str = Common.readLocalizationFile(dirPath);
+            String fileContent = Common.readLocalizationFile(dirPath);
+            fileContent = fileContent.strip();
+            String[] parts = fileContent.split("=");
+            if (parts.length < 2) {
+                newXValue_str = "";
+            } else {
+                newXValue_str = parts[1];
+            }
+
             if (!newXValue_str.isEmpty()) {
                 newXValue = Integer.valueOf(newXValue_str);
                 Common.localizationValues.replace(item.packageName, newXValue);
