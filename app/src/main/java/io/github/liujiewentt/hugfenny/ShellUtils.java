@@ -20,7 +20,9 @@ public class ShellUtils {
     public static String readFile(String filePath) throws Exception {
         String command = "cat \"" + filePath + "\"";
         Log.d(TAG, "readFile: command: " + command);
-        return Common.iUserService.execCommand(command);
+        String output = Common.iUserService.execCommand(command);
+        Log.d(TAG, "readFile: output: " + output);
+        return output;
         // return executeShellCommand(command);
     }
 

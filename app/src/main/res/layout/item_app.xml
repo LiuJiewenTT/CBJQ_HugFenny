@@ -9,17 +9,18 @@
 
     <ImageView
         android:id="@+id/app_icon"
-        android:layout_width="0dp"
-        android:layout_weight=".3"
+        android:layout_width="120dp"
         android:gravity="start"
-        android:layout_height="150dp"
+        android:layout_height="120dp"
         android:contentDescription="app_icon"
+        android:layout_marginTop="15dp"
+        android:layout_marginBottom="15dp"
         app:srcCompat="@drawable/ic_launcher_foreground" />
 
     <LinearLayout
         android:orientation="vertical"
         android:gravity="start"
-        android:layout_weight="0.4"
+        android:layout_weight="0.6"
         android:layout_width="0dp"
         android:layout_height="wrap_content">
         <TextView
@@ -39,7 +40,7 @@
 
     <TextView
         android:id="@+id/x_value"
-        android:gravity="end"
+        android:gravity="center"
         android:layout_weight="0.1"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -49,7 +50,7 @@
     <Button
         android:id="@+id/toggle_button"
         android:layout_gravity="center_vertical"
-        android:layout_weight="0.2"
+        android:layout_weight="0.3"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="切换" />
