@@ -20,6 +20,7 @@ import rikka.shizuku.Shizuku;
 import rikka.shizuku.ShizukuBinderWrapper;
 import rikka.shizuku.ShizukuProvider;
 
+
 public class Common {
 
     static String TAG = "Common";
@@ -39,10 +40,6 @@ public class Common {
             "com.seasun.snowbreak.google", "国际服"
     );
 
-//    static {
-//
-//    }
-
     public static String readFile(String path) throws Exception {
         return ShellUtils.readFile(path);
     }
@@ -51,8 +48,12 @@ public class Common {
         ShellUtils.writeFile(path, content);
     }
 
+    public static void deleteFile(String path) throws Exception {
+        ShellUtils.deleteFile(path);
+    }
+
     public static boolean updateLocalizationFile(String dirPath, int newValue) {
-//        String TAG = "updateLocalizationFile";
+        // String TAG = "updateLocalizationFile";
         String documentPath = String.join("/", dirPath, "files/localization.txt");
         Log.d(TAG, "documentPath: " + documentPath);
         try {
@@ -60,21 +61,32 @@ public class Common {
             return true;
         } catch (Exception e) {
             Log.e(TAG, "无法写入xvalue, 文件：" + documentPath, e);
-//            e.printStackTrace();
             return false;
         }
     }
 
     public static String readLocalizationFile(String dirPath) {
-//        String TAG = "readLocalizationFile";
+        // String TAG = "readLocalizationFile";
         String documentPath = String.join("/", dirPath, "files/localization.txt");
         Log.d(TAG, "documentPath: " + documentPath);
         try {
             return readFile(documentPath);
         } catch (Exception e) {
             Log.e(TAG, "无法读取xvalue, 文件：" + documentPath, e);
-//            e.printStackTrace();
             return "";
         }
     }
+
+    public static String deleteLocalizationFile(String dirPath) {
+        // String TAG = "deleteLocalizationFile";
+        String documentPath = String.join("/", dirPath, "files/localization.txt");
+        Log.d(TAG, "documentPath: " + documentPath);
+        try {
+            return readFile(documentPath);
+        } catch (Exception e) {
+            Log.e(TAG, "无法读取xvalue, 文件：" + documentPath, e);
+            return "";
+        }
+    }
+
 }

@@ -43,7 +43,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         // 设置布局文件
         setContentView(R.layout.activity_main);
-//        LinearLayout layout = findViewById(R.id.main_linearlayout);
+        // LinearLayout layout = findViewById(R.id.main_linearlayout);
 
         // 获取布局中的视图元素
         TextView helloWorldText = findViewById(R.id.hello_world);
@@ -58,33 +58,34 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        requestShizukuPermission();
-        // 绑定 Shizuku 服务
-        Shizuku.addRequestPermissionResultListener(onRequestPermissionResultListener);
-        // 添加权限申请监听
-//        Common.flag_high_priviledge = true;
-
-        // 检查 Shizuku 服务绑定
-        if (Shizuku.getVersion() > 0) {
-            IBinder iBinder = Shizuku.getBinder();
-            if( iBinder != null && iBinder.pingBinder() ){
-                System.out.println("Shizuku 服务已绑定且可用！");
-            } else {
-                System.out.println("Shizuku 服务未绑定！");
-            }
-        } else {
-            System.out.println("Shizuku 服务未启动，请确保它正在运行！");
-            Toast.makeText(MainActivity.this, "Shizuku 服务未启动，请确保它正在运行！", Toast.LENGTH_SHORT).show();
-        }
-
-//        Shizuku.addRequestPermissionResultListener(onRequestPermissionResultListener);
+        // -------------------------------------------------------------
 
         // Shiziku服务启动时调用该监听
         Shizuku.addBinderReceivedListenerSticky(onBinderReceivedListener);
-
         // Shiziku服务终止时调用该监听
         Shizuku.addBinderDeadListener(onBinderDeadListener);
+        // 绑定 Shizuku 权限
+        Shizuku.addRequestPermissionResultListener(onRequestPermissionResultListener);
 
+        // 检查 Shizuku 服务绑定
+        IBinder iBinder = Shizuku.getBinder();
+        if (iBinder != null && iBinder.pingBinder()) {
+            Log.i(TAG, "onCreate: Shizuku 服务已绑定且可用！");
+        } else {
+            Log.d(TAG, "onCreate: Shizuku 服务未绑定！");
+            return ;
+        }
+
+        try {
+            requestShizukuPermission();
+        } catch (IllegalStateException e) {
+            String str = "未连接到Shizuku";
+            Log.d(TAG, "onCreate: " + str);
+            Toast.makeText(this, str, Toast.LENGTH_SHORT).show();
+            return ;
+        }
+
+        // 通过已有的binder去bind服务
         Shizuku.bindUserService(userServiceArgs, serviceConnection);
 
         Main();
@@ -148,14 +149,14 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "onServiceConnected: 服务连接成功");
 
             if (iBinder != null && iBinder.pingBinder()) {
-                Log.d(TAG, "onServiceConnected: good ibinder.");
+                Log.i(TAG, "onServiceConnected: binder可用");
                 Toast.makeText(MainActivity.this, "binder可用", Toast.LENGTH_SHORT).show();
                 Common.shizuku_ibinder = iBinder;
                 Common.iUserService = UserService.asInterface(iBinder);
-//                Common.iUserService = IUserService.Stub.asInterface(iBinder);
             } else {
                 Toast.makeText(MainActivity.this, "binder不可用", Toast.LENGTH_SHORT).show();
-                throw new RuntimeException("no ibinder");
+                Common.shizuku_ibinder = null;
+                Common.iUserService = null;
             }
         }
 
@@ -168,12 +169,13 @@ public class MainActivity extends AppCompatActivity {
     /**
      * 判断是否拥有shizuku adb shell权限
      */
-    private boolean checkPermission() {
+    private boolean checkPermission() throws IllegalStateException {
         return Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED;
     }
 
-    private void requestShizukuPermission() {
+    private void requestShizukuPermission() throws IllegalStateException {
         boolean checked = checkPermission();
+
         if (checked) {
             Toast.makeText(this, "已拥有Shizuku权限", Toast.LENGTH_SHORT).show();
             return;
@@ -185,8 +187,6 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // 动态申请权限
-//        Shizuku.requestPermission(MainActivity.PERMISSION_CODE);
-//        Shizuku.requestPermission(MainActivity.RESULT_OK);
         Shizuku.requestPermission(10001);
     }
 
@@ -204,28 +204,28 @@ public class MainActivity extends AppCompatActivity {
 
         Common.extSdRootPath = Environment.getExternalStorageDirectory().getAbsolutePath();
         Common.dataDirectoryPath = String.join("/", Common.extSdRootPath, "Android/data");
-        Log.d(TAG, "Main: getExternalStorageDirectory(): "+Common.extSdRootPath);
+        Log.d(TAG, "Main: getExternalStorageDirectory(): " + Common.extSdRootPath);
         Log.d(TAG, "Main: dataDirectoryPath = " + Common.dataDirectoryPath);
         List<String> projectDirs = new ArrayList<>();
         List<ApplicationInfo> allApps = null;
         allApps = getPackageManager().getInstalledApplications(0);
-        while(allApps.size() <= 1){
+        while (allApps.size() <= 1) {
             sleep(300);
             allApps = getPackageManager().getInstalledApplications(0);
         }
 
         for (ApplicationInfo ai : allApps) {
-//            Log.d("packageName", ai.packageName);
+            //            Log.d("packageName", ai.packageName);
             String subDir_name = ai.packageName;
-//            Log.d(TAG, "onActivityResult: subdir, name: " + subDir_name);
-//                添加国服
+            //            Log.d(TAG, "onActivityResult: subdir, name: " + subDir_name);
+            //                添加国服
             if (subDir_name.startsWith("com.dragonli.projectsnow.")) {
-                Log.d(TAG, "add projectDirs : "+subDir_name);
+                Log.d(TAG, "add projectDirs : " + subDir_name);
                 projectDirs.add(subDir_name);
             }
-//                添加国际服
+            //                添加国际服
             if (subDir_name.startsWith("com.seasun.snowbreak")) {
-                Log.d(TAG, "add projectDirs : "+subDir_name);
+                Log.d(TAG, "add projectDirs : " + subDir_name);
                 projectDirs.add(subDir_name);
             }
         }
@@ -244,7 +244,7 @@ public class MainActivity extends AppCompatActivity {
 
         if (Common.localizationValues == null) {
             Log.e(TAG, "localizationValues = null");
-//            return;
+            // return;
         }
 
         PackageManager packageManager = getPackageManager();
