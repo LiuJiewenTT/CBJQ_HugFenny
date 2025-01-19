@@ -34,16 +34,18 @@ public class ShellUtils {
      * @throws Exception 如果 Shell 命令执行失败
      */
     public static void writeFile(String filePath, String content) throws Exception {
-        String command = "echo " + escapeShellArgument(content) + "> " + filePath;
+        String command = "echo " + escapeShellArgument(content) + " >" + filePath;
         Log.d(TAG, "writeFile: command: " + command);
-        Common.iUserService.execCommand(command);
+        String output = Common.iUserService.execCommand(command);
+        Log.d(TAG, "writeFile: output: " + output);
         // executeShellCommand(command);
     }
 
     public static void deleteFile(String filePath) throws Exception {
         String command = "rm " + filePath;
         Log.d(TAG, "deleteFile: command: " + command);
-        Common.iUserService.execCommand(command);
+        String output = Common.iUserService.execCommand(command);
+        Log.d(TAG, "deleteFile: output: " + output);
     }
 
     /**

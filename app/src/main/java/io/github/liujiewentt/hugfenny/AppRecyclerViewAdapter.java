@@ -56,13 +56,14 @@ public class AppRecyclerViewAdapter extends RecyclerView.Adapter<AppRecyclerView
             if (parts.length < 2) {
                 newXValue_str = "";
             } else {
-                newXValue_str = parts[1];
+                newXValue_str = parts[1].strip();
             }
 
             if (!newXValue_str.isEmpty()) {
                 newXValue = Integer.valueOf(newXValue_str);
                 Common.localizationValues.replace(item.packageName, newXValue);
                 holder.xValueTextView.setText(newXValue_str);
+                item.xValue = newXValue;
             } else {
                 newXValue = -1;
                 holder.xValueTextView.setText("-1");

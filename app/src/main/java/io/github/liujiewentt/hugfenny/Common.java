@@ -57,7 +57,7 @@ public class Common {
         String documentPath = String.join("/", dirPath, "files/localization.txt");
         Log.d(TAG, "documentPath: " + documentPath);
         try {
-            writeFile(documentPath, "localization = " + newValue);
+            writeFile(documentPath, "localization=" + newValue);
             return true;
         } catch (Exception e) {
             Log.e(TAG, "无法写入xvalue, 文件：" + documentPath, e);
