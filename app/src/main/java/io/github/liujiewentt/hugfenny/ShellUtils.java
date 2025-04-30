@@ -1,9 +1,13 @@
 package io.github.liujiewentt.hugfenny;
 
+import android.os.RemoteException;
 import android.util.Log;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 public class ShellUtils {
@@ -20,7 +24,7 @@ public class ShellUtils {
     public static String readFile(String filePath) throws Exception {
         String command = "cat " + filePath;
         Log.d(TAG, "readFile: command: " + command);
-        String output = Common.iUserService.execCommand(command);
+        String output = Common.iUserService.exec(command);
         Log.d(TAG, "readFile: output: " + output);
         return output;
         // return executeShellCommand(command);
@@ -34,9 +38,10 @@ public class ShellUtils {
      * @throws Exception 如果 Shell 命令执行失败
      */
     public static void writeFile(String filePath, String content) throws Exception {
-        String command = "echo " + escapeShellArgument(content) + " >" + filePath;
+        String command = "sh -c \"" + "echo '" +content + "' > " + filePath + " \"";
         Log.d(TAG, "writeFile: command: " + command);
-        String output = Common.iUserService.execCommand(command);
+        String output = Common.iUserService.exec(command);
+//        String output = executeShellCommand(command);
         Log.d(TAG, "writeFile: output: " + output);
         // executeShellCommand(command);
     }
@@ -44,7 +49,8 @@ public class ShellUtils {
     public static void deleteFile(String filePath) throws Exception {
         String command = "rm " + filePath;
         Log.d(TAG, "deleteFile: command: " + command);
-        String output = Common.iUserService.execCommand(command);
+        String output = Common.iUserService.exec(command);
+//        String output = executeShellCommand(command);
         Log.d(TAG, "deleteFile: output: " + output);
     }
 
@@ -68,7 +74,7 @@ public class ShellUtils {
      */
     private static String executeShellCommand(String command, boolean flag_su) throws Exception {
         String shell_executor = (flag_su ? "su" : "sh");
-        Process process = Runtime.getRuntime().exec(new String[]{shell_executor, "-c", command});
+        Process process = Runtime.getRuntime().exec(new String[]{shell_executor, "-c", "\"", command, "\""});
         BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
         StringBuilder output = new StringBuilder();
 
@@ -93,6 +99,7 @@ public class ShellUtils {
      */
     private static String escapeShellArgument(String input) {
         return input.replace("\"", "\\\"").replace("$", "\\$");
+//        return input.replace(" ", "%20");
     }
 }
 

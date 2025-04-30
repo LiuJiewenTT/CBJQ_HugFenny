@@ -5,5 +5,15 @@ interface IUserService {
 
     void exit() = 1; // Exit method defined by user
 
-    String execCommand(String command) = 2;
+    /**
+     * 执行命令
+     */
+    String execLine(String command) = 2;
+
+    /**
+     * 执行数组中分离的命令
+     */
+    String execArr(in String[] command) = 3;
+
+    String exec(String command) = 4;
 }
