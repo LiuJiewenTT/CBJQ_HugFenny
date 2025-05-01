@@ -24,19 +24,25 @@ public class ShellUtils {
         String command = "cat " + filePath;
         Log.d(TAG, "readFile: command: " + command);
         String output;
-        output = Common.iUserService.exec(command);
-        Log.d(TAG, "readFile: output1: " + output);
 
-        output = executeShellCommand(command);
-        Log.d(TAG, "readFile: output2: " + output);
+        String command_2, command_3;
 
-        output = Common.iUserService.exec("sh -c '" + command + "'");
-        Log.d(TAG, "readFile: output3: " + output);
-        resolveExecCommand("sh -c '" + command + "'");
+//        output = Common.iUserService.exec(command);
+//        Log.d(TAG, "readFile: output1: " + output);
 
-        output = Common.iUserService.exec("sh -c \"" + command + "\"");
+//        output = executeShellCommand(command);
+//        Log.d(TAG, "readFile: output2: " + output);
+
+        command_3 = "sh -c \"" + command + "\"";
+        output = Common.iUserService.exec(command_3);
+        resolveExecCommand(command_3);
         Log.d(TAG, "readFile: output4: " + output);
-        resolveExecCommand("sh -c \"" + command + "\"");
+
+        command_2 = "sh -c '" + command + "'";
+        output = Common.iUserService.exec(command_2);
+        resolveExecCommand(command_2);
+        Log.d(TAG, "readFile: output3: " + output);
+
         return output;
         // return executeShellCommand(command);
     }
@@ -121,7 +127,7 @@ public class ShellUtils {
                 }
             }
 
-            list.forEach(item -> Log.i(TAG, "exec: execArr item: " + item));
+            list.forEach(item -> Log.i(TAG, "exec: execArr item: [" + item + "]"));
 
             // 这种方法可用于执行路径中带空格的命令，例如 ls /storage/0/emulated/temp dir/
             // 当然也可以执行不带空格的命令，实际上是要强于另一种执行方式的
