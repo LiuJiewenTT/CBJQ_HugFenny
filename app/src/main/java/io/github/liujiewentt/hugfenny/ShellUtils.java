@@ -25,23 +25,9 @@ public class ShellUtils {
         Log.d(TAG, "readFile: command: " + command);
         String output;
 
-        String command_2, command_3;
-
 //        output = Common.iUserService.exec(command);
-//        Log.d(TAG, "readFile: output1: " + output);
-
-//        output = executeShellCommand(command);
-//        Log.d(TAG, "readFile: output2: " + output);
-
-        command_3 = "sh -c \"" + command + "\"";
-        output = Common.iUserService.exec(command_3);
-        resolveExecCommand(command_3);
-        Log.d(TAG, "readFile: output4: " + output);
-
-        command_2 = "sh -c '" + command + "'";
-        output = Common.iUserService.exec(command_2);
-        resolveExecCommand(command_2);
-        Log.d(TAG, "readFile: output3: " + output);
+        output = executeShellCommand(command);
+        Log.d(TAG, "readFile: output: " + output);
 
         return output;
         // return executeShellCommand(command);
@@ -55,7 +41,7 @@ public class ShellUtils {
      * @throws Exception 如果 Shell 命令执行失败
      */
     public static void writeFile(String filePath, String content) throws Exception {
-        String command = "echo '" +content + "' > '" + filePath + "'";
+        String command = "echo \"" + content + "\" > \"" + filePath + "\"";
         Log.d(TAG, "writeFile: command: " + command);
 //        String output = Common.iUserService.exec(command);
         String output = executeShellCommand(command, Common.flag_high_priviledge);
@@ -64,7 +50,7 @@ public class ShellUtils {
     }
 
     public static void deleteFile(String filePath) throws Exception {
-        String command = "rm " + filePath;
+        String command = "rm \"" + filePath + "\"";
         Log.d(TAG, "deleteFile: command: " + command);
 //        String output = Common.iUserService.exec(command);
         String output = executeShellCommand(command);
@@ -96,9 +82,9 @@ public class ShellUtils {
         String output = Common.iUserService.exec(command);
         Log.d(TAG, "executeShellCommand output: " + output);
         if (output == null) {
-            output = "返回结果为null";
+            Log.i(TAG, "返回结果为null");
         } else if (TextUtils.isEmpty(output.trim())) {
-            output = "返回结果为空";
+            Log.i(TAG, "返回结果为空");
         }
         return output;
     }
