@@ -54,3 +54,4 @@ google-services.json
 *.jks
 *.keystore
 
+/keep_local

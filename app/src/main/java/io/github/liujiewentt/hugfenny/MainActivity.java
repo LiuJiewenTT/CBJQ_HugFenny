@@ -194,11 +194,13 @@ public class MainActivity extends AppCompatActivity {
     protected void Main() {
         // 1. 获取 RecyclerView 实例
         recyclerView = findViewById(R.id.main_recyclerview);
+
         // 2. 设置 LayoutManager
         LinearLayoutManager linearLayoutManager = new LinearLayoutManager(this);
         linearLayoutManager.setStackFromEnd(true);
         linearLayoutManager.setReverseLayout(true);
         recyclerView.setLayoutManager(linearLayoutManager);
+
         // 3. 准备数据源
         itemList = new ArrayList<AppRecyclerViewItem>();
 
@@ -206,37 +208,41 @@ public class MainActivity extends AppCompatActivity {
         Common.dataDirectoryPath = String.join("/", Common.extSdRootPath, "Android/data");
         Log.d(TAG, "Main: getExternalStorageDirectory(): " + Common.extSdRootPath);
         Log.d(TAG, "Main: dataDirectoryPath = " + Common.dataDirectoryPath);
+
         List<String> projectDirs = new ArrayList<>();
-        List<ApplicationInfo> allApps = null;
-        allApps = getPackageManager().getInstalledApplications(0);
-        while (allApps.size() <= 1) {
+        List<ApplicationInfo> appList = null;
+        
+        PackageManager packageManager = getPackageManager();
+        
+        appList = packageManager.getInstalledApplications(0);
+        while (appList.size() <= 1) {
             sleep(300);
-            allApps = getPackageManager().getInstalledApplications(0);
+            appList = packageManager.getInstalledApplications(0);
         }
 
-        for (ApplicationInfo ai : allApps) {
-            //            Log.d("packageName", ai.packageName);
+        for (ApplicationInfo ai : appList) {
             String subDir_name = ai.packageName;
-            //            Log.d(TAG, "onActivityResult: subdir, name: " + subDir_name);
-            //                添加国服
+            Log.d(TAG, "packageName: " + subDir_name);
+            
+            // 添加国服
             if (subDir_name.startsWith("com.dragonli.projectsnow.")) {
-                Log.d(TAG, "add projectDirs : " + subDir_name);
+                Log.d(TAG, "add projectDirs (国服) : " + subDir_name);
                 projectDirs.add(subDir_name);
             }
-            //                添加国际服
+
+            // 添加国际服
             if (subDir_name.startsWith("com.seasun.snowbreak")) {
-                Log.d(TAG, "add projectDirs : " + subDir_name);
+                Log.d(TAG, "add projectDirs (国际服): " + subDir_name);
                 projectDirs.add(subDir_name);
             }
         }
 
         Common.localizationValues = new HashMap<>();
-        Map<String, String> packageUriMap = new HashMap<>();
 
         // 刚启动这边可能会读取错误。
         for (String dirName : projectDirs) {
-            String documentPath = String.join("/", Common.dataDirectoryPath, dirName);
-            String x_value = Common.readLocalizationFile(documentPath);
+            String appDataDir = String.join("/", Common.dataDirectoryPath, dirName);
+            String x_value = Common.readLocalizationFile(appDataDir);
             if (!x_value.isEmpty()) {
                 Common.localizationValues.put(dirName, Integer.valueOf(x_value));
             }
@@ -246,8 +252,9 @@ public class MainActivity extends AppCompatActivity {
             Log.e(TAG, "localizationValues = null");
             // return;
         }
-
-        PackageManager packageManager = getPackageManager();
+        
+        // 假设你已经有了包名、图标和备注数据
+        // itemList.add(new MyItem("com.example.app", "备注信息", someDrawable));
 
         for (String dirName : projectDirs) {
             String dirPath = String.join(Common.dataDirectoryPath, dirName);
@@ -267,9 +274,6 @@ public class MainActivity extends AppCompatActivity {
 
             itemList.add(new AppRecyclerViewItem(dirName, remark, appIcon, x_value));
         }
-
-        // 假设你已经有了包名、图标和备注数据
-        // itemList.add(new MyItem("com.example.app", "备注信息", someDrawable));
 
         // 4. 创建并设置适配器
         adapter = new AppRecyclerViewAdapter(itemList);
