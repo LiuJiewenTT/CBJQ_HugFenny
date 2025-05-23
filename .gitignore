@@ -55,3 +55,4 @@ google-services.json
 *.keystore
 
 /keep_local
+/.kotlin
